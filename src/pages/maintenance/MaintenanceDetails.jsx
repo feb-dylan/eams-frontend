@@ -173,9 +173,6 @@
         case "COMPLETED":
           return "bg-success";
 
-        case "CANCELLED":
-          return "bg-secondary";
-
         default:
           return "bg-secondary";
       }
@@ -403,10 +400,6 @@
 
                         <option value="COMPLETED">
                           COMPLETED
-                        </option>
-
-                        <option value="CANCELLED">
-                          CANCELLED
                         </option>
                       </select>
                     </div>

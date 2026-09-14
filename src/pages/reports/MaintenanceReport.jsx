@@ -46,10 +46,6 @@ const MaintenanceReport = () => {
           value: report.completed,
         },
         {
-          metric: "Cancelled",
-          value: report.cancelled,
-        },
-        {
           metric: "Total Repair Cost",
           value: Number(report.totalRepairCost || 0).toFixed(2),
         },
@@ -130,15 +126,6 @@ const MaintenanceReport = () => {
                 value={report.completed}
                 icon="bi-check2-all"
                 color="success"
-              />
-            </div>
-
-            <div className="col-sm-6 col-lg-3">
-              <ReportSummaryCard
-                label="Cancelled"
-                value={report.cancelled}
-                icon="bi-x-circle"
-                color="secondary"
               />
             </div>
 

@@ -14,7 +14,6 @@ const COLORS = {
   Scheduled: "#fd7e14",
   "In Progress": "#0d6efd",
   Completed: "#198754",
-  Cancelled: "#6c757d",
 };
 
 const MaintenanceStatusChart = ({ dashboard }) => {
@@ -30,10 +29,6 @@ const MaintenanceStatusChart = ({ dashboard }) => {
     {
       name: "Completed",
       value: dashboard?.completedMaintenance ?? 0,
-    },
-    {
-      name: "Cancelled",
-      value: dashboard?.cancelledMaintenance ?? 0,
     },
   ];
 

@@ -159,10 +159,7 @@ const RequestDetails = () => {
       await assetRequestApi.rejectRequest(
         request.id,
         userId,
-        {
-          rejectionReason:
-            rejectionReason.trim(),
-        }
+        rejectionReason.trim(),
       );
 
       setSuccess(

@@ -5,6 +5,8 @@ import {
 } from "react-router-dom";
 
 import Login from "../pages/auth/Login";
+import Register from "../pages/auth/Register";
+import Home from "../pages/Home";
 
 import AdminDashboard from "../pages/dashboard/AdminDashboard";
 import ManagerDashboard from "../pages/dashboard/ManagerDashboard";
@@ -59,9 +61,11 @@ import { useAuth } from "../context/AuthContext";
 // ======================================================
 
 const RoleRedirect = () => {
+
   const { role } = useAuth();
 
   switch (role) {
+
     case "ADMIN":
       return (
         <Navigate
@@ -110,6 +114,7 @@ const RoleRedirect = () => {
 // ======================================================
 
 const AppRoutes = () => {
+
   return (
     <Routes>
 
@@ -118,8 +123,18 @@ const AppRoutes = () => {
       ================================================== */}
 
       <Route
+        path="/"
+        element={<Home />}
+      />
+
+      <Route
         path="/login"
         element={<Login />}
+      />
+
+      <Route
+        path="/register"
+        element={<Register />}
       />
 
 
@@ -146,7 +161,6 @@ const AppRoutes = () => {
       >
 
         <Route element={<AppLayout />}>
-
 
           {/* ==================================================
               DASHBOARDS
@@ -398,17 +412,7 @@ const AppRoutes = () => {
               DAMAGE REPORTS
           ================================================== */}
 
-          {/* --------------------------------------------------
-              EMPLOYEE
-
-              Employee sees only their own damage reports.
-
-              Component:
-              MyDamageReports.jsx
-
-              API:
-              GET /api/damage/my/{employeeId}
-          -------------------------------------------------- */}
+          {/* Employee */}
 
           <Route
             path="/damage"
@@ -421,21 +425,7 @@ const AppRoutes = () => {
             }
           />
 
-
-          {/* --------------------------------------------------
-              ADMIN / TECHNICIAN
-
-              Admin and Technician see ALL damage reports.
-
-              Component:
-              DamageReports.jsx
-
-              API:
-              GET /api/damage
-
-              IMPORTANT:
-              This page must NOT require employeeId.
-          -------------------------------------------------- */}
+          {/* Admin / Technician */}
 
           <Route
             path="/damage/all"
@@ -451,13 +441,7 @@ const AppRoutes = () => {
             }
           />
 
-
-          {/* --------------------------------------------------
-              DAMAGE DETAILS
-
-              Accessible from both employee and admin/
-              technician damage report pages.
-          -------------------------------------------------- */}
+          {/* Damage Details */}
 
           <Route
             path="/damage/:id"
@@ -631,7 +615,7 @@ const AppRoutes = () => {
         path="*"
         element={
           <Navigate
-            to="/dashboard"
+            to="/"
             replace
           />
         }

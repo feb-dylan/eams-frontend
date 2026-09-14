@@ -36,6 +36,18 @@ const EmployeeForm = ({
         hireDate: initialData.hireDate ?? "",
         status: initialData.status ?? "ACTIVE",
       });
+    } else {
+      setFormData({
+        userId: "",
+        employeeCode: "",
+        firstName: "",
+        lastName: "",
+        phone: "",
+        departmentId: "",
+        position: "",
+        hireDate: "",
+        status: "ACTIVE",
+      });
     }
   }, [initialData]);
 
@@ -61,7 +73,7 @@ const EmployeeForm = ({
 
     const payload = {
       // User ID is kept from the existing employee.
-      // It cannot be changed from the form.
+      // It cannot be changed from this form.
       userId:
         formData.userId === ""
           ? null
@@ -78,6 +90,7 @@ const EmployeeForm = ({
           ? null
           : formData.phone.trim(),
 
+      // Department ID is sent to backend.
       departmentId: Number(formData.departmentId),
 
       position:
@@ -98,7 +111,6 @@ const EmployeeForm = ({
 
   return (
     <form onSubmit={handleSubmit}>
-
       <div className="row">
 
         {/* =====================================================
@@ -113,7 +125,7 @@ const EmployeeForm = ({
           <input
             type="text"
             name="userId"
-            className="form-control"
+            className="form-control bg-light"
             value={formData.userId}
             readOnly
           />
@@ -140,6 +152,7 @@ const EmployeeForm = ({
             onChange={handleChange}
             maxLength={50}
             required
+            disabled={loading}
           />
         </div>
 
@@ -160,6 +173,7 @@ const EmployeeForm = ({
             onChange={handleChange}
             maxLength={100}
             required
+            disabled={loading}
           />
         </div>
 
@@ -180,6 +194,7 @@ const EmployeeForm = ({
             onChange={handleChange}
             maxLength={100}
             required
+            disabled={loading}
           />
         </div>
 
@@ -199,6 +214,8 @@ const EmployeeForm = ({
             value={formData.phone}
             onChange={handleChange}
             maxLength={30}
+            disabled={loading}
+            placeholder="Enter phone number"
           />
         </div>
 
@@ -217,6 +234,7 @@ const EmployeeForm = ({
             value={formData.departmentId}
             onChange={handleChange}
             required
+            disabled={loading}
           >
             <option value="">
               Select Department
@@ -231,6 +249,10 @@ const EmployeeForm = ({
               </option>
             ))}
           </select>
+
+          <div className="form-text">
+            Select the employee's department.
+          </div>
         </div>
 
         {/* =====================================================
@@ -249,6 +271,8 @@ const EmployeeForm = ({
             value={formData.position}
             onChange={handleChange}
             maxLength={100}
+            disabled={loading}
+            placeholder="e.g. Software Developer"
           />
         </div>
 
@@ -267,6 +291,7 @@ const EmployeeForm = ({
             className="form-control"
             value={formData.hireDate}
             onChange={handleChange}
+            disabled={loading}
           />
         </div>
 
@@ -284,6 +309,7 @@ const EmployeeForm = ({
             className="form-select"
             value={formData.status}
             onChange={handleChange}
+            disabled={loading}
           >
             <option value="ACTIVE">
               Active
@@ -294,7 +320,6 @@ const EmployeeForm = ({
             </option>
           </select>
         </div>
-
       </div>
 
       {/* =====================================================
@@ -306,11 +331,23 @@ const EmployeeForm = ({
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={loading}
+          disabled={
+            loading ||
+            !formData.departmentId
+          }
         >
-          {loading
-            ? "Saving..."
-            : "Update Employee"}
+          {loading ? (
+            <>
+              <span
+                className="spinner-border spinner-border-sm me-2"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              Saving...
+            </>
+          ) : (
+            "Update Employee"
+          )}
         </button>
 
         <button
@@ -321,9 +358,7 @@ const EmployeeForm = ({
         >
           Cancel
         </button>
-
       </div>
-
     </form>
   );
 };

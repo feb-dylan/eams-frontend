@@ -1,7 +1,5 @@
 import { useState } from "react";
-
 import { useNavigate, useLocation } from "react-router-dom";
-
 import { useAuth } from "../../context/AuthContext";
 
 const PATH_LABELS = {
@@ -27,13 +25,12 @@ const PATH_LABELS = {
 
 const Topbar = ({ onToggleSidebar }) => {
   const { email, role, logout } = useAuth();
-
   const navigate = useNavigate();
   const location = useLocation();
-
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = () => {
+    setMenuOpen(false);
     logout();
     navigate("/login");
   };
@@ -53,7 +50,6 @@ const Topbar = ({ onToggleSidebar }) => {
 
   return (
     <header className="app-topbar d-flex align-items-center">
-
       {/* Mobile Sidebar Button */}
       <button
         className="btn btn-sm topbar-icon-btn me-3 d-lg-none"
@@ -79,35 +75,7 @@ const Topbar = ({ onToggleSidebar }) => {
       </div>
 
       {/* Right Side */}
-      <div className="ms-auto d-flex align-items-center gap-2">
-
-        {/* Notifications */}
-        <button
-          className="topbar-icon-btn position-relative"
-          title="Notifications"
-        >
-          <i className="bi bi-bell"></i>
-
-          <span
-            className="position-absolute top-0 end-0 rounded-circle bg-danger"
-            style={{
-              width: "8px",
-              height: "8px",
-              marginTop: "6px",
-              marginRight: "6px",
-            }}
-          ></span>
-        </button>
-
-        {/* Profile Icon */}
-        <button
-          className="topbar-icon-btn"
-          onClick={() => navigate("/profile")}
-          title="Profile"
-        >
-          <i className="bi bi-person-circle"></i>
-        </button>
-
+      <div className="ms-auto d-flex align-items-center">
         {/* User Menu */}
         <div className="position-relative">
           <button
@@ -153,17 +121,19 @@ const Topbar = ({ onToggleSidebar }) => {
                   zIndex: 1001,
                 }}
               >
-                {/* My Profile */}
-                <button
-                  className="dropdown-item d-flex align-items-center px-3 py-2"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    navigate("/profile");
-                  }}
-                >
-                  <i className="bi bi-person me-2"></i>
-                  My Profile
-                </button>
+                {/* User Information */}
+                <div className="px-3 py-2">
+                  <div className="fw-semibold">
+                    {role}
+                  </div>
+
+                  <div
+                    className="text-muted"
+                    style={{ fontSize: "0.8rem" }}
+                  >
+                    {email}
+                  </div>
+                </div>
 
                 <hr className="my-1" />
 

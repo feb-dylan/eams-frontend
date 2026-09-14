@@ -16,17 +16,23 @@ const Profile = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // =========================================================
+  // LOAD PROFILE
+  // =========================================================
   const loadProfile = async () => {
     try {
       setLoading(true);
       setError("");
 
       const data = await employeeApi.getCurrentEmployee();
+
       setEmployee(data);
     } catch (err) {
       console.error(err);
+
       setError(
         err.response?.data?.message ||
+          err.response?.data ||
           "Failed to load profile."
       );
     } finally {
@@ -38,14 +44,20 @@ const Profile = () => {
     loadProfile();
   }, []);
 
+  // =========================================================
+  // UPDATE PROFILE
+  // =========================================================
   const handleProfileSave = async (payload) => {
     try {
       setSavingProfile(true);
       setError("");
       setSuccess("");
 
-      const updated = await employeeApi.updateCurrentEmployee(payload);
+      const updated =
+        await employeeApi.updateCurrentEmployee(payload);
+
       setEmployee(updated);
+
       setSuccess("Profile updated successfully.");
     } catch (err) {
       console.error(err);
@@ -55,78 +67,132 @@ const Profile = () => {
     }
   };
 
-  const handlePasswordChange = async (currentPassword, newPassword) => {
+  // =========================================================
+  // CHANGE PASSWORD
+  // =========================================================
+  const handlePasswordChange = async (
+    currentPassword,
+    newPassword
+  ) => {
     try {
       setSavingPassword(true);
-      await authApi.changePassword(currentPassword, newPassword);
+      setError("");
+      setSuccess("");
+
+      await authApi.changePassword(
+        currentPassword,
+        newPassword
+      );
+
+      setSuccess("Password changed successfully.");
+    } catch (err) {
+      console.error(err);
+      throw err;
     } finally {
       setSavingPassword(false);
     }
   };
 
+  // =========================================================
+  // LOADING
+  // =========================================================
   if (loading) {
     return (
       <div className="container mt-5 text-center">
         <div className="spinner-border"></div>
-        <p className="mt-3">Loading profile...</p>
+
+        <p className="mt-3">
+          Loading profile...
+        </p>
       </div>
     );
   }
 
+  // =========================================================
+  // UI
+  // =========================================================
   return (
     <div className="container-fluid px-4 py-4">
+
       <div className="mb-4">
-        <h2 className="fw-bold mb-1">My Profile</h2>
+        <h2 className="fw-bold mb-1">
+          My Profile
+        </h2>
+
         <p className="text-muted mb-0">
           Manage your personal information and password.
         </p>
       </div>
 
       {error && (
-        <div className="alert alert-danger">{error}</div>
+        <div className="alert alert-danger">
+          {error}
+        </div>
       )}
 
       {success && (
-        <div className="alert alert-success">{success}</div>
+        <div className="alert alert-success">
+          {success}
+        </div>
       )}
 
       <div className="row g-4">
+
+        {/* =================================================
+            PERSONAL INFORMATION
+        ================================================== */}
         <div className="col-lg-7">
+
           <div className="card shadow-sm border-0">
+
             <div className="card-header bg-white border-0 pt-3">
+
               <h5 className="mb-0">
                 <i className="bi bi-person-badge me-2 text-primary"></i>
                 Personal Information
               </h5>
+
             </div>
 
             <div className="card-body">
+
               <ProfileForm
                 employee={employee}
                 onSubmit={handleProfileSave}
                 loading={savingProfile}
               />
+
             </div>
           </div>
         </div>
 
+        {/* =================================================
+            CHANGE PASSWORD
+        ================================================== */}
         <div className="col-lg-5">
+
           <div className="card shadow-sm border-0">
+
             <div className="card-header bg-white border-0 pt-3">
+
               <h5 className="mb-0">
                 <i className="bi bi-shield-lock me-2 text-warning"></i>
                 Change Password
               </h5>
+
             </div>
 
             <div className="card-body">
+
               <ChangePasswordForm
                 onSubmit={handlePasswordChange}
                 loading={savingPassword}
               />
+
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

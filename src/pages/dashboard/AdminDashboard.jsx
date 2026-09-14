@@ -386,7 +386,7 @@ const AdminDashboard = () => {
                 </h5>
 
                 <small className="text-muted">
-                  Scheduled, in progress, completed, cancelled
+                  Scheduled, in progress, completed
                 </small>
 
               </div>

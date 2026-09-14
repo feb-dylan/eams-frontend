@@ -211,9 +211,6 @@ const MaintenanceList = () => {
       case "COMPLETED":
         return "badge bg-success";
 
-      case "CANCELLED":
-        return "badge bg-danger";
-
       default:
         return "badge bg-secondary";
     }
@@ -419,10 +416,6 @@ const MaintenanceList = () => {
 
                 <option value="COMPLETED">
                   Completed
-                </option>
-
-                <option value="CANCELLED">
-                  Cancelled
                 </option>
               </select>
             </div>

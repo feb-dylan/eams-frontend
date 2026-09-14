@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const Login = () => {
@@ -29,6 +29,8 @@ const Login = () => {
 
       if (error.response?.data?.message) {
         setError(error.response.data.message);
+      } else if (typeof error.response?.data === "string") {
+        setError(error.response.data);
       } else {
         setError("Invalid email or password.");
       }
@@ -69,6 +71,7 @@ const Login = () => {
                     onChange={(e) =>
                       setEmail(e.target.value)
                     }
+                    placeholder="Enter your email"
                     required
                   />
                 </div>
@@ -85,6 +88,7 @@ const Login = () => {
                     onChange={(e) =>
                       setPassword(e.target.value)
                     }
+                    placeholder="Enter your password"
                     required
                   />
                 </div>
@@ -98,6 +102,19 @@ const Login = () => {
                 </button>
 
               </form>
+
+              <div className="text-center mt-3">
+                <span className="text-muted">
+                  Don't have an account?{" "}
+                </span>
+
+                <Link
+                  to="/register"
+                  className="text-decoration-none fw-semibold"
+                >
+                  Register
+                </Link>
+              </div>
 
             </div>
           </div>
