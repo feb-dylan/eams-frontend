@@ -8,6 +8,7 @@ const getAllMaintenance = async () => {
   return response.data;
 };
 
+
 const getMaintenanceById = async (id) => {
   const response = await api.get(
     `/api/maintenance/${id}`
@@ -16,6 +17,7 @@ const getMaintenanceById = async (id) => {
   return response.data;
 };
 
+
 const getMaintenanceByAsset = async (assetId) => {
   const response = await api.get(
     `/api/maintenance/asset/${assetId}`
@@ -23,6 +25,20 @@ const getMaintenanceByAsset = async (assetId) => {
 
   return response.data;
 };
+
+
+// =========================================================
+// GET ASSETS THAT HAVE REPAIRING DAMAGE
+// =========================================================
+
+const getRepairingAssets = async () => {
+  const response = await api.get(
+    "/api/maintenance/repairing-assets"
+  );
+
+  return response.data;
+};
+
 
 const createMaintenance = async (
   maintenanceData
@@ -34,6 +50,7 @@ const createMaintenance = async (
 
   return response.data;
 };
+
 
 const updateMaintenance = async (
   id,
@@ -47,10 +64,12 @@ const updateMaintenance = async (
   return response.data;
 };
 
+
 export default {
   getAllMaintenance,
   getMaintenanceById,
   getMaintenanceByAsset,
+  getRepairingAssets,
   createMaintenance,
   updateMaintenance,
 };

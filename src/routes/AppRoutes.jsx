@@ -53,6 +53,7 @@ import AppLayout from "../components/layout/AppLayout";
 
 import { useAuth } from "../context/AuthContext";
 
+
 // ======================================================
 // ROLE-BASED REDIRECT
 // ======================================================
@@ -103,6 +104,7 @@ const RoleRedirect = () => {
   }
 };
 
+
 // ======================================================
 // APP ROUTES
 // ======================================================
@@ -120,9 +122,14 @@ const AppRoutes = () => {
         element={<Login />}
       />
 
+
       {/* ==================================================
           AUTHENTICATED LAYOUT
-          Everything inside here gets the sidebar + topbar
+
+          Everything inside here gets:
+          - Sidebar
+          - Topbar
+          - Protected authentication
       ================================================== */}
 
       <Route
@@ -137,14 +144,20 @@ const AppRoutes = () => {
           />
         }
       >
+
         <Route element={<AppLayout />}>
 
-          {/* ---------------- Dashboards ---------------- */}
+
+          {/* ==================================================
+              DASHBOARDS
+          ================================================== */}
 
           <Route
             path="/admin/dashboard"
             element={
-              <ProtectedRoute allowedRoles={["ADMIN"]}>
+              <ProtectedRoute
+                allowedRoles={["ADMIN"]}
+              >
                 <AdminDashboard />
               </ProtectedRoute>
             }
@@ -153,7 +166,9 @@ const AppRoutes = () => {
           <Route
             path="/manager/dashboard"
             element={
-              <ProtectedRoute allowedRoles={["MANAGER"]}>
+              <ProtectedRoute
+                allowedRoles={["MANAGER"]}
+              >
                 <ManagerDashboard />
               </ProtectedRoute>
             }
@@ -162,7 +177,9 @@ const AppRoutes = () => {
           <Route
             path="/employee/dashboard"
             element={
-              <ProtectedRoute allowedRoles={["EMPLOYEE"]}>
+              <ProtectedRoute
+                allowedRoles={["EMPLOYEE"]}
+              >
                 <EmployeeDashboard />
               </ProtectedRoute>
             }
@@ -171,13 +188,18 @@ const AppRoutes = () => {
           <Route
             path="/technician/dashboard"
             element={
-              <ProtectedRoute allowedRoles={["TECHNICIAN"]}>
+              <ProtectedRoute
+                allowedRoles={["TECHNICIAN"]}
+              >
                 <TechnicianDashboard />
               </ProtectedRoute>
             }
           />
 
-          {/* ---------------- Categories ---------------- */}
+
+          {/* ==================================================
+              CATEGORIES
+          ================================================== */}
 
           <Route
             path="/categories"
@@ -189,7 +211,10 @@ const AppRoutes = () => {
             element={<CategoryDetails />}
           />
 
-          {/* ---------------- Assets ---------------- */}
+
+          {/* ==================================================
+              ASSETS
+          ================================================== */}
 
           <Route
             path="/assets"
@@ -201,24 +226,35 @@ const AppRoutes = () => {
             element={<AssetDetails />}
           />
 
-          {/* ---------------- Employee My Assets ---------------- */}
+
+          {/* ==================================================
+              EMPLOYEE - MY ASSETS
+          ================================================== */}
 
           <Route
             path="/my-assets"
             element={
-              <ProtectedRoute allowedRoles={["EMPLOYEE"]}>
+              <ProtectedRoute
+                allowedRoles={["EMPLOYEE"]}
+              >
                 <MyAssets />
               </ProtectedRoute>
             }
           />
 
-          {/* ---------------- Employees ---------------- */}
+
+          {/* ==================================================
+              EMPLOYEES
+          ================================================== */}
 
           <Route
             path="/employees"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "MANAGER"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "MANAGER",
+                ]}
               >
                 <EmployeeList />
               </ProtectedRoute>
@@ -229,20 +265,29 @@ const AppRoutes = () => {
             path="/employees/:id"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "MANAGER"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "MANAGER",
+                ]}
               >
                 <EmployeeDetails />
               </ProtectedRoute>
             }
           />
 
-          {/* ---------------- Departments ---------------- */}
+
+          {/* ==================================================
+              DEPARTMENTS
+          ================================================== */}
 
           <Route
             path="/departments"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "MANAGER"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "MANAGER",
+                ]}
               >
                 <DepartmentList />
               </ProtectedRoute>
@@ -253,105 +298,185 @@ const AppRoutes = () => {
             path="/departments/:id"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "MANAGER"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "MANAGER",
+                ]}
               >
                 <DepartmentDetails />
               </ProtectedRoute>
             }
           />
 
-          {/* ---------------- Requests ---------------- */}
+
+          {/* ==================================================
+              REQUESTS
+          ================================================== */}
+
+          {/* Employee - My Requests */}
 
           <Route
             path="/requests"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "EMPLOYEE"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "EMPLOYEE",
+                ]}
               >
                 <MyRequests />
               </ProtectedRoute>
             }
           />
 
+          {/* Manager - Pending Requests */}
+
           <Route
             path="/requests/pending"
             element={
-              <ProtectedRoute allowedRoles={["MANAGER"]}>
+              <ProtectedRoute
+                allowedRoles={["MANAGER"]}
+              >
                 <PendingRequests />
               </ProtectedRoute>
             }
           />
 
+          {/* Admin - Approved Requests */}
+
           <Route
             path="/requests/approved"
             element={
-              <ProtectedRoute allowedRoles={["ADMIN"]}>
+              <ProtectedRoute
+                allowedRoles={["ADMIN"]}
+              >
                 <ApprovedRequests />
               </ProtectedRoute>
             }
           />
+
+          {/* Request Details */}
 
           <Route
             path="/requests/:id"
             element={<RequestDetails />}
           />
 
-          {/* ---------------- Assignments ---------------- */}
+
+          {/* ==================================================
+              ASSIGNMENTS
+          ================================================== */}
+
+          {/* Admin - Assignment History */}
 
           <Route
             path="/assignments"
             element={
-              <ProtectedRoute allowedRoles={["ADMIN"]}>
+              <ProtectedRoute
+                allowedRoles={["ADMIN"]}
+              >
                 <AssignmentHistory />
               </ProtectedRoute>
             }
           />
 
-          {/* ---------------- Admin Return / Assignment Details ---------------- */}
+          {/* Admin - Assignment / Return Details */}
 
           <Route
             path="/admin/assignments/:assignmentId"
             element={
-              <ProtectedRoute allowedRoles={["ADMIN"]}>
+              <ProtectedRoute
+                allowedRoles={["ADMIN"]}
+              >
                 <ReturnDetails />
               </ProtectedRoute>
             }
           />
 
-          {/* ---------------- Damage ---------------- */}
+
+          {/* ==================================================
+              DAMAGE REPORTS
+          ================================================== */}
+
+          {/* --------------------------------------------------
+              EMPLOYEE
+
+              Employee sees only their own damage reports.
+
+              Component:
+              MyDamageReports.jsx
+
+              API:
+              GET /api/damage/my/{employeeId}
+          -------------------------------------------------- */}
 
           <Route
             path="/damage"
             element={
-              <ProtectedRoute allowedRoles={["EMPLOYEE"]}>
+              <ProtectedRoute
+                allowedRoles={["EMPLOYEE"]}
+              >
                 <MyDamageReports />
               </ProtectedRoute>
             }
           />
 
+
+          {/* --------------------------------------------------
+              ADMIN / TECHNICIAN
+
+              Admin and Technician see ALL damage reports.
+
+              Component:
+              DamageReports.jsx
+
+              API:
+              GET /api/damage
+
+              IMPORTANT:
+              This page must NOT require employeeId.
+          -------------------------------------------------- */}
+
           <Route
             path="/damage/all"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "TECHNICIAN"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "TECHNICIAN",
+                ]}
               >
                 <DamageReports />
               </ProtectedRoute>
             }
           />
 
+
+          {/* --------------------------------------------------
+              DAMAGE DETAILS
+
+              Accessible from both employee and admin/
+              technician damage report pages.
+          -------------------------------------------------- */}
+
           <Route
             path="/damage/:id"
             element={<DamageDetails />}
           />
 
-          {/* ---------------- Maintenance ---------------- */}
+
+          {/* ==================================================
+              MAINTENANCE
+          ================================================== */}
 
           <Route
             path="/maintenance"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "TECHNICIAN"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "TECHNICIAN",
+                ]}
               >
                 <MaintenanceList />
               </ProtectedRoute>
@@ -362,82 +487,121 @@ const AppRoutes = () => {
             path="/maintenance/:id"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "TECHNICIAN"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "TECHNICIAN",
+                ]}
               >
                 <MaintenanceDetails />
               </ProtectedRoute>
             }
           />
 
-          {/* ---------------- Reports ---------------- */}
+
+          {/* ==================================================
+              REPORTS
+          ================================================== */}
+
+          {/* Reports Dashboard */}
 
           <Route
             path="/reports"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "MANAGER"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "MANAGER",
+                ]}
               >
                 <ReportsDashboard />
               </ProtectedRoute>
             }
           />
 
+          {/* Asset Report */}
+
           <Route
             path="/reports/assets"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "MANAGER"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "MANAGER",
+                ]}
               >
                 <AssetReport />
               </ProtectedRoute>
             }
           />
 
+          {/* Request Report */}
+
           <Route
             path="/reports/requests"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "MANAGER"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "MANAGER",
+                ]}
               >
                 <RequestReport />
               </ProtectedRoute>
             }
           />
 
+          {/* Maintenance Report */}
+
           <Route
             path="/reports/maintenance"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "MANAGER"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "MANAGER",
+                ]}
               >
                 <MaintenanceReport />
               </ProtectedRoute>
             }
           />
 
+          {/* Damage Report */}
+
           <Route
             path="/reports/damage"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "MANAGER"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "MANAGER",
+                ]}
               >
                 <DamageReport />
               </ProtectedRoute>
             }
           />
 
+          {/* Assignment Report */}
+
           <Route
             path="/reports/assignments"
             element={
               <ProtectedRoute
-                allowedRoles={["ADMIN", "MANAGER"]}
+                allowedRoles={[
+                  "ADMIN",
+                  "MANAGER",
+                ]}
               >
                 <AssignmentReport />
               </ProtectedRoute>
             }
           />
 
-          {/* ---------------- Profile ---------------- */}
+
+          {/* ==================================================
+              PROFILE
+          ================================================== */}
 
           <Route
             path="/profile"
@@ -445,16 +609,23 @@ const AppRoutes = () => {
           />
 
         </Route>
+
       </Route>
 
+
       {/* ==================================================
-          ROOT REDIRECTS
+          ROOT DASHBOARD REDIRECT
       ================================================== */}
 
       <Route
         path="/dashboard"
         element={<RoleRedirect />}
       />
+
+
+      {/* ==================================================
+          FALLBACK
+      ================================================== */}
 
       <Route
         path="*"

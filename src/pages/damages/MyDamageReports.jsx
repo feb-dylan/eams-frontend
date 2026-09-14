@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 
 import damageApi from "../../services/damageApi";
-import assetApi from "../../services/assetApi";
-import DamageForm from "../../components/damages/DamageForm";
-
+import assetRequestApi from "../../services/assetRequestApi";
 import { useAuth } from "../../context/AuthContext";
 
 const MyDamageReports = () => {
@@ -13,30 +10,25 @@ const MyDamageReports = () => {
   const [reports, setReports] = useState([]);
   const [assets, setAssets] = useState([]);
 
-  const [loading, setLoading] = useState(true);
-  const [formLoading, setFormLoading] = useState(false);
+  const [damageData, setDamageData] = useState({
+    assetId: "",
+    description: "",
+    evidenceUrl: "",
+  });
 
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const [showForm, setShowForm] = useState(false);
-
   const loadReports = async () => {
     try {
-      setLoading(true);
-      setError("");
-
       if (!employeeId) {
-        setError(
-          "Employee information is not available."
-        );
         return;
       }
 
       const data =
-        await damageApi.getMyDamageReports(
-          employeeId
-        );
+        await damageApi.getMyDamageReports(employeeId);
 
       setReports(data);
     } catch (error) {
@@ -45,49 +37,102 @@ const MyDamageReports = () => {
       setError(
         error.response?.data?.message ||
           error.response?.data ||
-          "Failed to load damage reports."
+          "Failed to load your damage reports."
       );
-    } finally {
-      setLoading(false);
     }
   };
 
   const loadAssets = async () => {
     try {
-      const data =
-        await assetApi.getAssets();
+      if (!employeeId) {
+        return;
+      }
 
-      // Retired assets should not be reportable.
-      const reportableAssets = data.filter(
-        (asset) => asset.status !== "RETIRED"
-      );
+      const assignments =
+        await assetRequestApi.getMyAssignedAssets(
+          employeeId
+        );
 
-      setAssets(reportableAssets);
+      const assignedAssets = assignments
+        .filter(
+          (assignment) =>
+            assignment.status === "ACTIVE" ||
+            assignment.status === "RETURN_REQUESTED"
+        )
+        .map((assignment) => ({
+          id: assignment.assetId,
+          assetCode: assignment.assetCode,
+          name: assignment.assetName,
+        }));
+
+      setAssets(assignedAssets);
     } catch (error) {
       console.error(error);
 
       setError(
         error.response?.data?.message ||
           error.response?.data ||
-          "Failed to load assets."
+          "Failed to load your assigned assets."
       );
     }
   };
 
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      await Promise.all([
+        loadReports(),
+        loadAssets(),
+      ]);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    loadReports();
-    loadAssets();
+    loadData();
   }, [employeeId]);
 
-  const handleSubmit = async (damageData) => {
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setDamageData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    if (!employeeId) {
+      setError("Employee information is not available.");
+      return;
+    }
+
+    if (!damageData.assetId) {
+      setError("Please select an asset.");
+      return;
+    }
+
+    if (!damageData.description.trim()) {
+      setError("Please enter a damage description.");
+      return;
+    }
+
     try {
-      setFormLoading(true);
-      setError("");
-      setSuccess("");
+      setSubmitting(true);
 
       await damageApi.createDamageReport({
         employeeId: employeeId,
-        assetId: damageData.assetId,
+        assetId: Number(damageData.assetId),
         description: damageData.description,
         evidenceUrl: damageData.evidenceUrl,
       });
@@ -96,9 +141,14 @@ const MyDamageReports = () => {
         "Damage report submitted successfully."
       );
 
-      setShowForm(false);
+      setDamageData({
+        assetId: "",
+        description: "",
+        evidenceUrl: "",
+      });
 
       await loadReports();
+      await loadAssets();
     } catch (error) {
       console.error(error);
 
@@ -107,10 +157,8 @@ const MyDamageReports = () => {
           error.response?.data ||
           "Failed to submit damage report."
       );
-
-      throw error;
     } finally {
-      setFormLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -143,27 +191,13 @@ const MyDamageReports = () => {
 
   return (
     <div className="container mt-4">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h2>My Damage Reports</h2>
+      <div className="mb-4">
+        <h2>My Damage Reports</h2>
 
-          <p className="text-muted mb-0">
-            Report and track damaged company assets.
-          </p>
-        </div>
-
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setShowForm(true);
-            setSuccess("");
-            setError("");
-          }}
-        >
-          <i className="bi bi-plus-lg me-1"></i>
-          Report Damage
-        </button>
+        <p className="text-muted mb-0">
+          Report and track damage for assets currently
+          assigned to you.
+        </p>
       </div>
 
       {error && (
@@ -178,36 +212,119 @@ const MyDamageReports = () => {
         </div>
       )}
 
-      {/* Form */}
-      {showForm && (
-        <div className="card shadow-sm mb-4">
-          <div className="card-header">
-            <h5 className="mb-0">
-              Report Damaged Asset
-            </h5>
-          </div>
-
-          <div className="card-body">
-            {assets.length === 0 ? (
-              <div className="alert alert-warning">
-                No reportable assets were found.
-              </div>
-            ) : (
-              <DamageForm
-                assets={assets}
-                onSubmit={handleSubmit}
-                onCancel={() =>
-                  setShowForm(false)
-                }
-                loading={formLoading}
-              />
-            )}
-          </div>
+      {/* Create Damage Report */}
+      <div className="card shadow-sm mb-4">
+        <div className="card-header">
+          <h5 className="mb-0">
+            Report Asset Damage
+          </h5>
         </div>
-      )}
 
-      {/* Table */}
+        <div className="card-body">
+          <form onSubmit={handleSubmit}>
+            <div className="mb-3">
+              <label
+                htmlFor="assetId"
+                className="form-label"
+              >
+                Asset
+              </label>
+
+              <select
+                id="assetId"
+                name="assetId"
+                className="form-select"
+                value={damageData.assetId}
+                onChange={handleChange}
+                disabled={submitting}
+              >
+                <option value="">
+                  Select an assigned asset
+                </option>
+
+                {assets.map((asset) => (
+                  <option
+                    key={asset.id}
+                    value={asset.id}
+                  >
+                    {asset.assetCode} - {asset.name}
+                  </option>
+                ))}
+              </select>
+
+              {assets.length === 0 && !loading && (
+                <small className="text-muted">
+                  You currently have no assigned assets
+                  available for reporting.
+                </small>
+              )}
+            </div>
+
+            <div className="mb-3">
+              <label
+                htmlFor="description"
+                className="form-label"
+              >
+                Damage Description
+              </label>
+
+              <textarea
+                id="description"
+                name="description"
+                className="form-control"
+                rows="4"
+                placeholder="Describe the damage..."
+                value={damageData.description}
+                onChange={handleChange}
+                disabled={submitting}
+              />
+            </div>
+
+            <div className="mb-3">
+              <label
+                htmlFor="evidenceUrl"
+                className="form-label"
+              >
+                Evidence URL
+              </label>
+
+              <input
+                type="text"
+                id="evidenceUrl"
+                name="evidenceUrl"
+                className="form-control"
+                placeholder="Optional evidence URL"
+                value={damageData.evidenceUrl}
+                onChange={handleChange}
+                disabled={submitting}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-danger"
+              disabled={
+                submitting ||
+                loading ||
+                assets.length === 0
+              }
+            >
+              {submitting
+                ? "Submitting..."
+                : "Report Damage"}
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* My Reports */}
       <div className="card shadow-sm">
+        <div className="card-header">
+          <h5 className="mb-0">
+            My Damage Reports
+          </h5>
+        </div>
+
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
             <thead className="table-light">
@@ -217,7 +334,6 @@ const MyDamageReports = () => {
                 <th>Description</th>
                 <th>Reported Date</th>
                 <th>Status</th>
-                <th>Actions</th>
               </tr>
             </thead>
 
@@ -225,7 +341,7 @@ const MyDamageReports = () => {
               {loading ? (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="5"
                     className="text-center py-4"
                   >
                     Loading damage reports...
@@ -234,10 +350,10 @@ const MyDamageReports = () => {
               ) : reports.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="5"
                     className="text-center py-4"
                   >
-                    No damage reports found.
+                    You have no damage reports.
                   </td>
                 </tr>
               ) : (
@@ -246,29 +362,25 @@ const MyDamageReports = () => {
                     <td>{report.id}</td>
 
                     <td>
-                      <strong>
-                        {report.assetCode}
-                      </strong>
+                      {report.assetCode ? (
+                        <>
+                          <strong>
+                            {report.assetCode}
+                          </strong>
 
-                      <br />
+                          <br />
 
-                      <small className="text-muted">
-                        {report.assetName}
-                      </small>
+                          <small className="text-muted">
+                            {report.assetName || "-"}
+                          </small>
+                        </>
+                      ) : (
+                        "-"
+                      )}
                     </td>
 
                     <td>
-                      <span
-                        title={report.description}
-                      >
-                        {report.description.length >
-                        70
-                          ? `${report.description.substring(
-                              0,
-                              70
-                            )}...`
-                          : report.description}
-                      </span>
+                      {report.description || "-"}
                     </td>
 
                     <td>
@@ -285,15 +397,6 @@ const MyDamageReports = () => {
                       >
                         {report.status}
                       </span>
-                    </td>
-
-                    <td>
-                      <Link
-                        to={`/damage/${report.id}`}
-                        className="btn btn-sm btn-outline-primary"
-                      >
-                        View
-                      </Link>
                     </td>
                   </tr>
                 ))

@@ -39,7 +39,10 @@ const getDamageReportsByAsset = async (assetId) => {
   return response.data;
 };
 
-const updateDamageReport = async (id, damageData) => {
+const updateDamageReport = async (
+  id,
+  damageData
+) => {
   const response = await api.put(
     `/api/damage/${id}`,
     damageData

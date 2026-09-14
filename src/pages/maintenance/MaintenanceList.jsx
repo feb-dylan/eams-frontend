@@ -2,30 +2,32 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import maintenanceApi from "../../services/maintenanceApi";
-import assetApi from "../../services/assetApi";
-import MaintenanceForm from "../../components/maintenance/MaintenanceForm";
-
+import MaintenanceForm from "../../components/maintenance/MaintenanceForm.jsx";
 import { useAuth } from "../../context/AuthContext";
 
 const MaintenanceList = () => {
   const { role } = useAuth();
 
-  const [maintenanceRecords, setMaintenanceRecords] =
-    useState([]);
-
+  const [maintenance, setMaintenance] = useState([]);
   const [assets, setAssets] = useState([]);
 
   const [loading, setLoading] = useState(true);
-  const [formLoading, setFormLoading] =
-    useState(false);
+  const [assetsLoading, setAssetsLoading] = useState(false);
 
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [assetError, setAssetError] = useState("");
 
   const [showForm, setShowForm] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
 
-  const [selectedStatus, setSelectedStatus] =
-    useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const isAdminOrTechnician =
+    role === "ADMIN" || role === "TECHNICIAN";
+
+  // =========================================================
+  // LOAD MAINTENANCE
+  // =========================================================
 
   const loadMaintenance = async () => {
     try {
@@ -35,13 +37,18 @@ const MaintenanceList = () => {
       const data =
         await maintenanceApi.getAllMaintenance();
 
-      setMaintenanceRecords(data);
-    } catch (error) {
-      console.error(error);
+      setMaintenance(
+        Array.isArray(data) ? data : []
+      );
+    } catch (err) {
+      console.error(
+        "Failed to load maintenance:",
+        err
+      );
 
       setError(
-        error.response?.data?.message ||
-          error.response?.data ||
+        err?.response?.data?.message ||
+          err?.response?.data ||
           "Failed to load maintenance records."
       );
     } finally {
@@ -49,319 +56,499 @@ const MaintenanceList = () => {
     }
   };
 
+  // =========================================================
+  // LOAD ASSETS AVAILABLE FOR MAINTENANCE
+  // =========================================================
+
   const loadAssets = async () => {
     try {
+      setAssetsLoading(true);
+      setAssetError("");
+
       const data =
-        await assetApi.getAssets();
+        await maintenanceApi.getRepairingAssets();
 
-      const usableAssets = data.filter(
-        (asset) => asset.status !== "RETIRED"
+      setAssets(
+        Array.isArray(data) ? data : []
+      );
+    } catch (err) {
+      console.error(
+        "Failed to load repairing assets:",
+        err
       );
 
-      setAssets(usableAssets);
-    } catch (error) {
-      console.error(error);
+      setAssets([]);
 
-      setError(
-        error.response?.data?.message ||
-          error.response?.data ||
-          "Failed to load assets."
+      setAssetError(
+        err?.response?.data?.message ||
+          err?.response?.data ||
+          "Failed to load assets available for maintenance."
       );
+    } finally {
+      setAssetsLoading(false);
     }
   };
 
+  // =========================================================
+  // INITIAL LOAD
+  // =========================================================
+
   useEffect(() => {
     loadMaintenance();
-    loadAssets();
   }, []);
 
-  const handleCreate = () => {
-    setShowForm(true);
-    setSuccess("");
-    setError("");
-  };
+  // =========================================================
+  // LOAD ELIGIBLE ASSETS WHEN FORM OPENS
+  // =========================================================
 
-  const handleSubmit = async (maintenanceData) => {
+  useEffect(() => {
+    if (showForm) {
+      loadAssets();
+    }
+  }, [showForm]);
+
+  // =========================================================
+  // CREATE MAINTENANCE
+  // =========================================================
+
+  const handleCreateMaintenance = async (formData) => {
     try {
       setFormLoading(true);
       setError("");
-      setSuccess("");
 
       await maintenanceApi.createMaintenance(
-        maintenanceData
-      );
-
-      setSuccess(
-        "Maintenance record created successfully."
+        formData
       );
 
       setShowForm(false);
 
       await loadMaintenance();
-    } catch (error) {
-      console.error(error);
-
-      setError(
-        error.response?.data?.message ||
-          error.response?.data ||
-          "Failed to create maintenance record."
+      await loadAssets();
+    } catch (err) {
+      console.error(
+        "Failed to create maintenance:",
+        err
       );
 
-      throw error;
+      setError(
+        err?.response?.data?.message ||
+          err?.response?.data ||
+          "Failed to create maintenance."
+      );
     } finally {
       setFormLoading(false);
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "SCHEDULED":
-        return "bg-warning text-dark";
+  // =========================================================
+  // FILTER
+  // =========================================================
 
-      case "IN_PROGRESS":
-        return "bg-primary";
+  const filteredMaintenance =
+    maintenance.filter((item) => {
+      if (statusFilter === "ALL") {
+        return true;
+      }
 
-      case "COMPLETED":
-        return "bg-success";
+      return item.status === statusFilter;
+    });
 
-      case "CANCELLED":
-        return "bg-secondary";
+  // =========================================================
+  // FORMAT DATE
+  // =========================================================
 
-      default:
-        return "bg-secondary";
+  const formatDate = (date) => {
+    if (!date) {
+      return "-";
     }
+
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return date;
+    }
+
+    return parsedDate.toLocaleDateString();
   };
 
-  const filteredRecords = selectedStatus
-    ? maintenanceRecords.filter(
-        (record) =>
-          record.status === selectedStatus
-      )
-    : maintenanceRecords;
+  // =========================================================
+  // FORMAT MONEY
+  // =========================================================
 
-  const formatCost = (cost) => {
+  const formatMoney = (value) => {
     if (
-      cost === null ||
-      cost === undefined
+      value === null ||
+      value === undefined ||
+      value === ""
     ) {
       return "-";
     }
 
-    return Number(cost).toFixed(2);
+    const number = Number(value);
+
+    if (Number.isNaN(number)) {
+      return value;
+    }
+
+    return number.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   };
 
+  // =========================================================
+  // STATUS BADGE
+  // =========================================================
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "SCHEDULED":
+        return "badge bg-primary";
+
+      case "IN_PROGRESS":
+        return "badge bg-warning text-dark";
+
+      case "COMPLETED":
+        return "badge bg-success";
+
+      case "CANCELLED":
+        return "badge bg-danger";
+
+      default:
+        return "badge bg-secondary";
+    }
+  };
+
+  const formatStatus = (status) => {
+    if (!status) {
+      return "-";
+    }
+
+    return status
+      .replace(/_/g, " ")
+      .toLowerCase()
+      .replace(/\b\w/g, (letter) =>
+        letter.toUpperCase()
+      );
+  };
+
+  // =========================================================
+  // LOADING
+  // =========================================================
+
+  if (loading) {
+    return (
+      <div className="container-fluid py-4">
+        <div className="card shadow-sm">
+          <div className="card-body text-center py-5">
+            <div
+              className="spinner-border text-primary"
+              role="status"
+            >
+              <span className="visually-hidden">
+                Loading...
+              </span>
+            </div>
+
+            <p className="mt-2 mb-0">
+              Loading maintenance records...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================
+  // PAGE
+  // =========================================================
+
   return (
-    <div className="container mt-4">
+    <div className="container-fluid py-4">
       {/* Header */}
+
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h2>Maintenance</h2>
+          <h2 className="mb-1">
+            Maintenance Management
+          </h2>
 
           <p className="text-muted mb-0">
-            Manage asset maintenance and repair
-            activities.
+            Manage asset maintenance and repair records
           </p>
         </div>
 
-        <div className="d-flex gap-2">
+        {isAdminOrTechnician && (
           <button
-            className="btn btn-outline-secondary"
-            onClick={loadMaintenance}
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setError("");
+              setAssetError("");
+              setShowForm(true);
+            }}
           >
-            <i className="bi bi-arrow-clockwise me-1"></i>
-            Refresh
+            <i className="bi bi-tools me-2"></i>
+            Add Maintenance
           </button>
-
-          {(role === "ADMIN" ||
-            role === "TECHNICIAN") && (
-            <button
-              className="btn btn-primary"
-              onClick={handleCreate}
-            >
-              <i className="bi bi-plus-lg me-1"></i>
-              Add Maintenance
-            </button>
-          )}
-        </div>
+        )}
       </div>
+
+      {/* Error */}
 
       {error && (
         <div className="alert alert-danger">
-          {error}
+          <strong>Error:</strong> {error}
         </div>
       )}
 
-      {success && (
-        <div className="alert alert-success">
-          {success}
-        </div>
-      )}
+      {/* Create Maintenance Form */}
 
-      {/* Create Form */}
-      {showForm && (
+      {showForm && isAdminOrTechnician && (
         <div className="card shadow-sm mb-4">
-          <div className="card-header">
+          <div className="card-header d-flex justify-content-between align-items-center">
             <h5 className="mb-0">
-              Create Maintenance Record
+              Create Maintenance
             </h5>
+
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary"
+              onClick={() => setShowForm(false)}
+              disabled={formLoading}
+            >
+              <i className="bi bi-x-lg me-1"></i>
+              Close
+            </button>
           </div>
 
           <div className="card-body">
-            {assets.length === 0 ? (
-              <div className="alert alert-warning">
-                No usable assets are available.
+            {/* Asset Loading */}
+
+            {assetsLoading && (
+              <div className="text-center py-4">
+                <div
+                  className="spinner-border text-primary"
+                  role="status"
+                >
+                  <span className="visually-hidden">
+                    Loading...
+                  </span>
+                </div>
+
+                <p className="mt-2 mb-0">
+                  Loading assets available for maintenance...
+                </p>
               </div>
-            ) : (
-              <MaintenanceForm
-                assets={assets}
-                onSubmit={handleSubmit}
-                onCancel={() =>
-                  setShowForm(false)
-                }
-                loading={formLoading}
-              />
             )}
+
+            {/* Asset Error / Empty */}
+
+            {!assetsLoading &&
+              assets.length === 0 && (
+                <div className="alert alert-warning mb-0">
+                  <i className="bi bi-exclamation-triangle me-2"></i>
+
+                  {assetError
+                    ? assetError
+                    : "There are currently no assets with a REPAIRING damage report available for maintenance."}
+                </div>
+              )}
+
+            {/* Maintenance Form */}
+
+            {!assetsLoading &&
+              assets.length > 0 && (
+                <MaintenanceForm
+                  assets={assets}
+                  onSubmit={handleCreateMaintenance}
+                  onCancel={() =>
+                    setShowForm(false)
+                  }
+                  loading={formLoading}
+                />
+              )}
           </div>
         </div>
       )}
 
-      {/* Filter */}
-      <div className="card shadow-sm mb-4">
-        <div className="card-body">
-          <div className="row">
+      {/* Maintenance Table Card */}
+
+      <div className="card shadow-sm">
+        <div className="card-header d-flex justify-content-between align-items-center">
+          <h5 className="mb-0">
+            Maintenance Records
+          </h5>
+
+          <span className="badge bg-secondary">
+            {filteredMaintenance.length} records
+          </span>
+        </div>
+
+        {/* Filter */}
+
+        <div className="card-body border-bottom">
+          <div className="row align-items-center">
             <div className="col-md-4">
-              <label className="form-label">
-                Status
+              <label
+                htmlFor="statusFilter"
+                className="form-label mb-1"
+              >
+                Filter by Status
               </label>
 
               <select
+                id="statusFilter"
                 className="form-select"
-                value={selectedStatus}
+                value={statusFilter}
                 onChange={(e) =>
-                  setSelectedStatus(
-                    e.target.value
-                  )
+                  setStatusFilter(e.target.value)
                 }
               >
-                <option value="">
+                <option value="ALL">
                   All Statuses
                 </option>
 
                 <option value="SCHEDULED">
-                  SCHEDULED
+                  Scheduled
                 </option>
 
                 <option value="IN_PROGRESS">
-                  IN_PROGRESS
+                  In Progress
                 </option>
 
                 <option value="COMPLETED">
-                  COMPLETED
+                  Completed
                 </option>
 
                 <option value="CANCELLED">
-                  CANCELLED
+                  Cancelled
                 </option>
               </select>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="card shadow-sm">
-        <div className="table-responsive">
-          <table className="table table-hover align-middle mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>ID</th>
-                <th>Asset</th>
-                <th>Technician</th>
-                <th>Start Date</th>
-                <th>End Date</th>
-                <th>Repair Cost</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
+        {/* Table */}
 
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan="8"
-                    className="text-center py-4"
-                  >
-                    Loading maintenance records...
-                  </td>
-                </tr>
-              ) : filteredRecords.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan="8"
-                    className="text-center py-4"
-                  >
-                    No maintenance records found.
-                  </td>
-                </tr>
-              ) : (
-                filteredRecords.map((record) => (
-                  <tr key={record.id}>
-                    <td>{record.id}</td>
+        <div className="card-body p-0">
+          {filteredMaintenance.length === 0 ? (
+            <div className="text-center py-5 text-muted">
+              <i className="bi bi-tools fs-1"></i>
 
-                    <td>
-                      <strong>
-                        {record.assetCode}
-                      </strong>
+              <h5 className="mt-3">
+                No maintenance records
+              </h5>
 
-                      <br />
-
-                      <small className="text-muted">
-                        {record.assetName}
-                      </small>
-                    </td>
-
-                    <td>
-                      {record.technician || "-"}
-                    </td>
-
-                    <td>
-                      {record.startDate || "-"}
-                    </td>
-
-                    <td>
-                      {record.endDate || "-"}
-                    </td>
-
-                    <td>
-                      {formatCost(
-                        record.repairCost
-                      )}
-                    </td>
-
-                    <td>
-                      <span
-                        className={`badge ${getStatusBadge(
-                          record.status
-                        )}`}
-                      >
-                        {record.status}
-                      </span>
-                    </td>
-
-                    <td>
-                      <Link
-                        to={`/maintenance/${record.id}`}
-                        className="btn btn-sm btn-outline-primary"
-                      >
-                        View
-                      </Link>
-                    </td>
+              <p className="mb-0">
+                There are no maintenance records
+                matching the selected filter.
+              </p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>ID</th>
+                    <th>Asset</th>
+                    <th>Technician</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Repair Cost</th>
+                    <th>Status</th>
+                    <th>Action</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </thead>
+
+                <tbody>
+                  {filteredMaintenance.map(
+                    (item) => (
+                      <tr key={item.id}>
+                        {/* ID */}
+
+                        <td>
+                          <strong>
+                            #{item.id}
+                          </strong>
+                        </td>
+
+                        {/* Asset */}
+
+                        <td>
+                          <div>
+                            <strong>
+                              {item.assetCode || "-"}
+                            </strong>
+
+                            <div className="text-muted small">
+                              {item.assetName || "-"}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Technician */}
+
+                        <td>
+                          {item.technician || "-"}
+                        </td>
+
+                        {/* Start Date */}
+
+                        <td>
+                          {formatDate(
+                            item.startDate
+                          )}
+                        </td>
+
+                        {/* End Date */}
+
+                        <td>
+                          {formatDate(
+                            item.endDate
+                          )}
+                        </td>
+
+                        {/* Repair Cost */}
+
+                        <td>
+                          {formatMoney(
+                            item.repairCost
+                          )}
+                        </td>
+
+                        {/* Status */}
+
+                        <td>
+                          <span
+                            className={getStatusBadge(
+                              item.status
+                            )}
+                          >
+                            {formatStatus(
+                              item.status
+                            )}
+                          </span>
+                        </td>
+
+                        {/* Action */}
+
+                        <td>
+                          <Link
+                            to={`/maintenance/${item.id}`}
+                            className="btn btn-sm btn-outline-primary"
+                          >
+                            <i className="bi bi-eye me-1"></i>
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    )
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

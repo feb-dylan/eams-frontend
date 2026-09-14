@@ -1,42 +1,22 @@
 import { useEffect, useState } from "react";
+
 import { Link } from "react-router-dom";
 
 import damageApi from "../../services/damageApi";
-import assetApi from "../../services/assetApi";
-import DamageForm from "../../components/damages/DamageForm";
 
-import { useAuth } from "../../context/AuthContext";
-
-const MyDamageReports = () => {
-  const { employeeId } = useAuth();
-
+const AdminDamageReports = () => {
   const [reports, setReports] = useState([]);
-  const [assets, setAssets] = useState([]);
 
   const [loading, setLoading] = useState(true);
-  const [formLoading, setFormLoading] = useState(false);
-
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  const [showForm, setShowForm] = useState(false);
 
   const loadReports = async () => {
     try {
       setLoading(true);
       setError("");
 
-      if (!employeeId) {
-        setError(
-          "Employee information is not available."
-        );
-        return;
-      }
-
       const data =
-        await damageApi.getMyDamageReports(
-          employeeId
-        );
+        await damageApi.getAllDamageReports();
 
       setReports(data);
     } catch (error) {
@@ -52,67 +32,9 @@ const MyDamageReports = () => {
     }
   };
 
-  const loadAssets = async () => {
-    try {
-      const data =
-        await assetApi.getAssets();
-
-      // Retired assets should not be reportable.
-      const reportableAssets = data.filter(
-        (asset) => asset.status !== "RETIRED"
-      );
-
-      setAssets(reportableAssets);
-    } catch (error) {
-      console.error(error);
-
-      setError(
-        error.response?.data?.message ||
-          error.response?.data ||
-          "Failed to load assets."
-      );
-    }
-  };
-
   useEffect(() => {
     loadReports();
-    loadAssets();
-  }, [employeeId]);
-
-  const handleSubmit = async (damageData) => {
-    try {
-      setFormLoading(true);
-      setError("");
-      setSuccess("");
-
-      await damageApi.createDamageReport({
-        employeeId: employeeId,
-        assetId: damageData.assetId,
-        description: damageData.description,
-        evidenceUrl: damageData.evidenceUrl,
-      });
-
-      setSuccess(
-        "Damage report submitted successfully."
-      );
-
-      setShowForm(false);
-
-      await loadReports();
-    } catch (error) {
-      console.error(error);
-
-      setError(
-        error.response?.data?.message ||
-          error.response?.data ||
-          "Failed to submit damage report."
-      );
-
-      throw error;
-    } finally {
-      setFormLoading(false);
-    }
-  };
+  }, []);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -143,26 +65,24 @@ const MyDamageReports = () => {
 
   return (
     <div className="container mt-4">
-      {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h2>My Damage Reports</h2>
+          <h2>Damage Reports</h2>
 
           <p className="text-muted mb-0">
-            Report and track damaged company assets.
+            View and manage all reported damaged
+            company assets.
           </p>
         </div>
 
         <button
-          className="btn btn-primary"
-          onClick={() => {
-            setShowForm(true);
-            setSuccess("");
-            setError("");
-          }}
+          className="btn btn-outline-primary"
+          onClick={loadReports}
+          disabled={loading}
         >
-          <i className="bi bi-plus-lg me-1"></i>
-          Report Damage
+          <i className="bi bi-arrow-clockwise me-1"></i>
+
+          Refresh
         </button>
       </div>
 
@@ -172,47 +92,19 @@ const MyDamageReports = () => {
         </div>
       )}
 
-      {success && (
-        <div className="alert alert-success">
-          {success}
-        </div>
-      )}
-
-      {/* Form */}
-      {showForm && (
-        <div className="card shadow-sm mb-4">
-          <div className="card-header">
-            <h5 className="mb-0">
-              Report Damaged Asset
-            </h5>
-          </div>
-
-          <div className="card-body">
-            {assets.length === 0 ? (
-              <div className="alert alert-warning">
-                No reportable assets were found.
-              </div>
-            ) : (
-              <DamageForm
-                assets={assets}
-                onSubmit={handleSubmit}
-                onCancel={() =>
-                  setShowForm(false)
-                }
-                loading={formLoading}
-              />
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Table */}
       <div className="card shadow-sm">
+        <div className="card-header">
+          <h5 className="mb-0">
+            All Damage Reports
+          </h5>
+        </div>
+
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
             <thead className="table-light">
               <tr>
                 <th>ID</th>
+                <th>Employee</th>
                 <th>Asset</th>
                 <th>Description</th>
                 <th>Reported Date</th>
@@ -225,7 +117,7 @@ const MyDamageReports = () => {
               {loading ? (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="7"
                     className="text-center py-4"
                   >
                     Loading damage reports...
@@ -234,7 +126,7 @@ const MyDamageReports = () => {
               ) : reports.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="7"
                     className="text-center py-4"
                   >
                     No damage reports found.
@@ -245,38 +137,67 @@ const MyDamageReports = () => {
                   <tr key={report.id}>
                     <td>{report.id}</td>
 
+                    {/* Employee */}
                     <td>
-                      <strong>
-                        {report.assetCode}
-                      </strong>
+                      {report.employeeName ? (
+                        <>
+                          <strong>
+                            {report.employeeName}
+                          </strong>
 
-                      <br />
+                          <br />
 
-                      <small className="text-muted">
-                        {report.assetName}
-                      </small>
+                          <small className="text-muted">
+                            {report.employeeCode || "-"}
+                          </small>
+                        </>
+                      ) : (
+                        "-"
+                      )}
                     </td>
 
+                    {/* Asset */}
+                    <td>
+                      {report.assetCode ? (
+                        <>
+                          <strong>
+                            {report.assetCode}
+                          </strong>
+
+                          <br />
+
+                          <small className="text-muted">
+                            {report.assetName || "-"}
+                          </small>
+                        </>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+
+                    {/* Description */}
                     <td>
                       <span
                         title={report.description}
                       >
-                        {report.description.length >
-                        70
+                        {report.description &&
+                        report.description.length > 70
                           ? `${report.description.substring(
                               0,
                               70
                             )}...`
-                          : report.description}
+                          : report.description || "-"}
                       </span>
                     </td>
 
+                    {/* Date */}
                     <td>
                       {formatDate(
                         report.reportedDate
                       )}
                     </td>
 
+                    {/* Status */}
                     <td>
                       <span
                         className={`badge ${getStatusBadge(
@@ -287,6 +208,7 @@ const MyDamageReports = () => {
                       </span>
                     </td>
 
+                    {/* Action */}
                     <td>
                       <Link
                         to={`/damage/${report.id}`}
@@ -306,4 +228,4 @@ const MyDamageReports = () => {
   );
 };
 
-export default MyDamageReports;
+export default AdminDamageReports;
