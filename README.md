@@ -33,13 +33,23 @@ For a demo, start the backend with demo data (`SEED_DEMO_DATA=true`) and set
 
 ## Configuration
 
+The page always calls `/api` on **its own address**, and Vite forwards `/api` and `/uploads` to the
+backend (see `vite.config.js`). The same build therefore works on localhost, on other computers
+in the network, and through a Cloudflare tunnel, with no CORS settings.
+
 | Variable | Default | Purpose |
 |---|---|---|
-| `VITE_API_URL` | `http://localhost:8080` | Backend URL |
-| `VITE_DEMO_MODE` | `false` | Show demo login buttons |
+| `BACKEND_URL` | `http://localhost:8080` | Where Vite forwards `/api` and `/uploads` |
+| `ALLOWED_HOSTS` | - | Extra host names allowed to open the app (e.g. your own domain). `*.trycloudflare.com` and `*.ngrok-free.app` are already allowed |
+| `VITE_API_URL` | *(empty = same address)* | Only set it to call a backend directly without forwarding |
+| `VITE_DEMO_MODE` | `false` | Show demo login buttons. Keep it **false** while the app is public |
 | `VITE_DEMO_PASSWORD` | `Password123!` | Password of the seeded demo accounts |
 
 Only `VITE_*` variables are exposed to the browser. Never put secrets here.
+
+### Demo / show day
+From the `Projects` folder: `.\start-demo.ps1 -Mode Local | Lan | Public` starts the backend, the
+production frontend and (Public) a free HTTPS Cloudflare tunnel. Stop it with `.\stop-demo.ps1`.
 
 ## Main features
 
@@ -86,5 +96,6 @@ src/
 
 ## Deployment note
 
-This is a single-page app: the web server must serve `index.html` for unknown paths
-(e.g. nginx `try_files $uri /index.html;`), otherwise refreshing `/assets/5` gives 404.
+`npm run build` + `npm run preview` serves the production build *and* forwards `/api` (used by the
+demo scripts). Behind another web server (e.g. nginx), serve `index.html` for unknown paths
+(`try_files $uri /index.html;`) and proxy `/api` and `/uploads` to the backend.
