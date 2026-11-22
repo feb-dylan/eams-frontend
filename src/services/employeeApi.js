@@ -79,36 +79,8 @@ const updateCurrentEmployee = async (data) => {
   return response.data;
 };
 
-// =========================================================
-// CURRENT EMPLOYEE — ASSIGNED ASSETS
-// =========================================================
-
-const getMyAssignedAssets = async (employeeId) => {
-  const response = await api.get(
-    `/api/requests/assignments/my/${employeeId}`
-  );
-
-  return response.data;
-};
-
-// =========================================================
-// CURRENT EMPLOYEE — REQUEST ASSET RETURN
-// =========================================================
-
-const requestAssetReturn = async (
-  assignmentId,
-  employeeId,
-  returnNote
-) => {
-  const response = await api.put(
-    `/api/requests/assignments/${assignmentId}/return-request/${employeeId}`,
-    {
-      returnNote,
-    }
-  );
-
-  return response.data;
-};
+// Assigned assets / return requests live in assetRequestApi now
+// (the server reads the employee from the login token).
 
 export default {
   getEmployees,
@@ -120,6 +92,4 @@ export default {
   getCurrentEmployee,
   createCurrentEmployee,
   updateCurrentEmployee,
-  getMyAssignedAssets,
-  requestAssetReturn,
 };

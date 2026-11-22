@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../../utils/apiError";
   import { useEffect, useState } from "react";
   import {
     Link,
@@ -60,9 +61,7 @@
         console.error(error);
 
         setError(
-          error.response?.data?.message ||
-            error.response?.data ||
-            "Failed to load maintenance record."
+          getErrorMessage(error, "Failed to load maintenance record.")
         );
       } finally {
         setLoading(false);
@@ -153,9 +152,7 @@
         console.error(error);
 
         setError(
-          error.response?.data?.message ||
-            error.response?.data ||
-            "Failed to update maintenance record."
+          getErrorMessage(error, "Failed to update maintenance record.")
         );
       } finally {
         setUpdateLoading(false);

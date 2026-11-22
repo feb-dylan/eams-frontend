@@ -4,10 +4,9 @@ import { Link } from "react-router-dom";
 
 import assignmentApi from "../../services/assignmentApi";
 
-import { useAuth } from "../../context/AuthContext";
+import { getErrorMessage } from "../../utils/apiError";
 
 const AssignmentHistory = () => {
-  const { userId } = useAuth();
 
   const [assignments, setAssignments] = useState([]);
 
@@ -35,9 +34,7 @@ const AssignmentHistory = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to load assignment history."
+        getErrorMessage(err, "Failed to load assignment history.")
       );
     } finally {
       setLoading(false);
@@ -69,7 +66,6 @@ const AssignmentHistory = () => {
 
       await assignmentApi.returnAssignment(
         returningAssignment.id,
-        userId,
         trimmed || null
       );
 
@@ -85,9 +81,7 @@ const AssignmentHistory = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to return asset."
+        getErrorMessage(err, "Failed to return asset.")
       );
     } finally {
       setActionLoading(false);

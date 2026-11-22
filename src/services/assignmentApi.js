@@ -1,39 +1,14 @@
 import api from "./api";
 
-// Admin views assignment history
-const getAssignmentHistory = async () => {
-  const response = await api.get(
-    "/api/requests/assignments/history"
-  );
+const assignmentApi = {
+  getAssignmentHistory: async () => (await api.get("/api/requests/assignments/history")).data,
 
-  return response.data;
+  getAssignmentById: async (assignmentId) =>
+    (await api.get(`/api/requests/assignments/${assignmentId}`)).data,
+
+  /** Admin receives the returned asset (works for ACTIVE or RETURN_REQUESTED). */
+  returnAssignment: async (assignmentId, returnNote) =>
+    (await api.put(`/api/requests/assignments/${assignmentId}/return`, { returnNote })).data,
 };
 
-// Get one assignment
-const getAssignmentById = async (assignmentId) => {
-  const response = await api.get(
-    `/api/requests/assignments/${assignmentId}`
-  );
-
-  return response.data;
-};
-
-// Admin returns an asset
-const returnAssignment = async (
-  assignmentId,
-  adminId,
-  returnNote
-) => {
-  const response = await api.put(
-    `/api/requests/assignments/${assignmentId}/return/${adminId}`,
-    { returnNote }
-  );
-
-  return response.data;
-};
-
-export default {
-  getAssignmentHistory,
-  getAssignmentById,
-  returnAssignment,
-};
+export default assignmentApi;

@@ -65,7 +65,14 @@ const updateMaintenance = async (
 };
 
 
+/** Jobs assigned to the logged-in technician. */
+const getMyMaintenance = async () => {
+  const response = await api.get("/api/maintenance/my");
+  return response.data;
+};
+
 export default {
+  getMyMaintenance,
   getAllMaintenance,
   getMaintenanceById,
   getMaintenanceByAsset,

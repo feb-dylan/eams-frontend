@@ -5,6 +5,7 @@ import reportApi from "../../services/reportApi";
 
 import ReportSummaryCard from "../../components/reports/ReportSummaryCard";
 import ExportButtons from "../../components/reports/ExportButtons";
+import { getErrorMessage } from "../../utils/apiError";
 
 const RequestReport = () => {
   const [report, setReport] = useState(null);
@@ -22,8 +23,7 @@ const RequestReport = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          "Failed to load request report."
+        getErrorMessage(err, "Failed to load request report.")
       );
     } finally {
       setLoading(false);

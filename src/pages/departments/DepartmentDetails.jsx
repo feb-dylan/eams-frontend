@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 
 import departmentApi from "../../services/departmentApi";
+import { getErrorMessage } from "../../utils/apiError";
 
 const DepartmentDetails = () => {
   const { id } = useParams();
@@ -62,8 +63,7 @@ const DepartmentDetails = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          "Failed to load department."
+        getErrorMessage(err, "Failed to load department.")
       );
     } finally {
       setLoading(false);
@@ -93,8 +93,7 @@ const DepartmentDetails = () => {
       console.error(err);
 
       setEmployeesError(
-        err.response?.data?.message ||
-          "Failed to load employees."
+        getErrorMessage(err, "Failed to load employees.")
       );
     } finally {
       setEmployeesLoading(false);

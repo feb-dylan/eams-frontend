@@ -5,8 +5,11 @@ import employeeApi from "../../services/employeeApi";
 import departmentApi from "../../services/departmentApi";
 import EmployeeForm from "../../components/employees/EmployeeForm";
 import { useAuth } from "../../context/AuthContext";
+import { getErrorMessage } from "../../utils/apiError";
+import { useConfirm } from "../../components/common/Feedback";
 
 const EmployeeList = () => {
+  const confirm = useConfirm();
   const { role } = useAuth();
 
   const [employees, setEmployees] = useState([]);
@@ -43,8 +46,7 @@ const EmployeeList = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          "Failed to load departments."
+        getErrorMessage(err, "Failed to load departments.")
       );
     }
   };
@@ -77,8 +79,7 @@ const EmployeeList = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          "Failed to load employees."
+        getErrorMessage(err, "Failed to load employees.")
       );
     } finally {
       setLoading(false);
@@ -167,8 +168,7 @@ const EmployeeList = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          "Failed to update employee."
+        getErrorMessage(err, "Failed to update employee.")
       );
     } finally {
       setSaving(false);
@@ -180,7 +180,7 @@ const EmployeeList = () => {
   // =========================================================
 
   const handleDelete = async (employee) => {
-    const confirmed = window.confirm(
+    const confirmed = await confirm(
       `Are you sure you want to delete ${employee.firstName} ${employee.lastName}?`
     );
 
@@ -196,8 +196,7 @@ const EmployeeList = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          "Failed to delete employee."
+        getErrorMessage(err, "Failed to delete employee.")
       );
     }
   };

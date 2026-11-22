@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import maintenanceApi from "../../services/maintenanceApi";
 import MaintenanceForm from "../../components/maintenance/MaintenanceForm.jsx";
 import { useAuth } from "../../context/AuthContext";
+import { getErrorMessage } from "../../utils/apiError";
 
 const MaintenanceList = () => {
   const { role } = useAuth();
@@ -47,9 +48,7 @@ const MaintenanceList = () => {
       );
 
       setError(
-        err?.response?.data?.message ||
-          err?.response?.data ||
-          "Failed to load maintenance records."
+        getErrorMessage(err, "Failed to load maintenance records.")
       );
     } finally {
       setLoading(false);
@@ -80,9 +79,7 @@ const MaintenanceList = () => {
       setAssets([]);
 
       setAssetError(
-        err?.response?.data?.message ||
-          err?.response?.data ||
-          "Failed to load assets available for maintenance."
+        getErrorMessage(err, "Failed to load assets available for maintenance.")
       );
     } finally {
       setAssetsLoading(false);
@@ -131,9 +128,7 @@ const MaintenanceList = () => {
       );
 
       setError(
-        err?.response?.data?.message ||
-          err?.response?.data ||
-          "Failed to create maintenance."
+        getErrorMessage(err, "Failed to create maintenance.")
       );
     } finally {
       setFormLoading(false);

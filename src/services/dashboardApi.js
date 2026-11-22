@@ -1,31 +1,11 @@
 import api from "./api";
 
-const getAdminDashboard = async () => {
-  const response = await api.get("/api/dashboard/admin");
-  return response.data;
+const dashboardApi = {
+  getAdminDashboard: async () => (await api.get("/api/dashboard/admin")).data,
+  getManagerDashboard: async () => (await api.get("/api/dashboard/manager")).data,
+  getTechnicianDashboard: async () => (await api.get("/api/dashboard/technician")).data,
+  /** The logged-in employee's own dashboard. */
+  getEmployeeDashboard: async () => (await api.get("/api/dashboard/employee")).data,
 };
 
-const getManagerDashboard = async () => {
-  const response = await api.get("/api/dashboard/manager");
-  return response.data;
-};
-
-const getTechnicianDashboard = async () => {
-  const response = await api.get("/api/dashboard/technician");
-  return response.data;
-};
-
-const getEmployeeDashboard = async (employeeId) => {
-  const response = await api.get(
-    `/api/dashboard/employee/${employeeId}`
-  );
-
-  return response.data;
-};
-
-export default {
-  getAdminDashboard,
-  getManagerDashboard,
-  getTechnicianDashboard,
-  getEmployeeDashboard,
-};
+export default dashboardApi;

@@ -5,10 +5,12 @@ import { Link } from "react-router-dom";
 import employeeApi from "../../services/employeeApi";
 
 import dashboardApi from "../../services/dashboardApi";
+import assetRequestApi from "../../services/assetRequestApi";
 
 import EmployeeProfileForm from "../employees/EmployeeProfileForm";
 
 import KpiCard from "../../components/dashboard/KpiCard";
+import { getErrorMessage } from "../../utils/apiError";
 
 const EmployeeDashboard = () => {
 
@@ -42,9 +44,7 @@ const EmployeeDashboard = () => {
       setProfileMissing(false);
 
       const dashboardData =
-        await dashboardApi.getEmployeeDashboard(
-          employeeData.id
-        );
+        await dashboardApi.getEmployeeDashboard();
 
       setDashboard(dashboardData);
 
@@ -55,9 +55,7 @@ const EmployeeDashboard = () => {
       setLoadingAssets(true);
 
       const assignedData =
-        await employeeApi.getMyAssignedAssets(
-          employeeData.id
-        );
+        await assetRequestApi.getMyAssignedAssets();
 
       setAssignedAssets(assignedData);
 
@@ -78,8 +76,7 @@ const EmployeeDashboard = () => {
       } else {
 
         setError(
-          err.response?.data?.message ||
-            "Failed to load employee dashboard."
+          getErrorMessage(err, "Failed to load employee dashboard.")
         );
 
       }
@@ -107,9 +104,7 @@ const EmployeeDashboard = () => {
     try {
 
       const dashboardData =
-        await dashboardApi.getEmployeeDashboard(
-          createdEmployee.id
-        );
+        await dashboardApi.getEmployeeDashboard();
 
       setDashboard(dashboardData);
 
@@ -118,9 +113,7 @@ const EmployeeDashboard = () => {
       // =====================================================
 
       const assignedData =
-        await employeeApi.getMyAssignedAssets(
-          createdEmployee.id
-        );
+        await assetRequestApi.getMyAssignedAssets();
 
       setAssignedAssets(assignedData);
 
@@ -129,8 +122,7 @@ const EmployeeDashboard = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          "Profile was created, but dashboard could not be loaded."
+        getErrorMessage(err, "Profile was created, but dashboard could not be loaded.")
       );
     }
   };

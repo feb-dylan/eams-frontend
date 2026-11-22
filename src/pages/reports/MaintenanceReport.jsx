@@ -6,6 +6,7 @@ import reportApi from "../../services/reportApi";
 import ReportSummaryCard from "../../components/reports/ReportSummaryCard";
 import ExportButtons from "../../components/reports/ExportButtons";
 import MaintenanceStatusChart from "../../components/dashboard/MaintenanceStatusChart";
+import { getErrorMessage } from "../../utils/apiError";
 
 const MaintenanceReport = () => {
   const [report, setReport] = useState(null);
@@ -23,8 +24,7 @@ const MaintenanceReport = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          "Failed to load maintenance report."
+        getErrorMessage(err, "Failed to load maintenance report.")
       );
     } finally {
       setLoading(false);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getErrorMessage } from "../../utils/apiError";
 
 const ProfileForm = ({
   employee,
@@ -42,9 +43,7 @@ const ProfileForm = ({
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to update profile."
+        getErrorMessage(err, "Failed to update profile.")
       );
     }
   };

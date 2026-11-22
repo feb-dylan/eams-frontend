@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import employeeApi from "../../services/employeeApi";
 import departmentApi from "../../services/departmentApi";
 import { useAuth } from "../../context/AuthContext";
+import { getErrorMessage } from "../../utils/apiError";
 
 const EmployeeProfileForm = ({ onProfileCreated }) => {
   const { refreshEmployee } = useAuth();
@@ -58,10 +59,7 @@ const EmployeeProfileForm = ({ onProfileCreated }) => {
         setDepartments([]);
 
         setError(
-          err.response?.data?.message ||
-            (typeof err.response?.data === "string"
-              ? err.response.data
-              : "Failed to load departments.")
+          getErrorMessage(err, "Failed to load departments.")
         );
       } finally {
         setLoadingDepartments(false);
@@ -161,10 +159,7 @@ const EmployeeProfileForm = ({ onProfileCreated }) => {
       );
 
       setError(
-        err.response?.data?.message ||
-          (typeof err.response?.data === "string"
-            ? err.response.data
-            : "Failed to create employee profile.")
+        getErrorMessage(err, "Failed to create employee profile.")
       );
     } finally {
       setLoading(false);

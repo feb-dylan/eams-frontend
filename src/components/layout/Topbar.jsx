@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import NotificationBell from "./NotificationBell";
 
 const PATH_LABELS = {
   dashboard: "Dashboard",
@@ -21,6 +22,15 @@ const PATH_LABELS = {
   maintenance: "Maintenance",
   reports: "Reports",
   profile: "My Profile",
+  my: "Mine",
+  "my-assets": "My Assets",
+  scan: "Scan QR",
+  a: "Scanned Asset",
+  insights: "Insights",
+  users: "Users",
+  audits: "Stock-take",
+  "audit-log": "Audit Log",
+  notifications: "Notifications",
 };
 
 const Topbar = ({ onToggleSidebar }) => {
@@ -76,6 +86,8 @@ const Topbar = ({ onToggleSidebar }) => {
 
       {/* Right Side */}
       <div className="ms-auto d-flex align-items-center">
+        <NotificationBell />
+
         {/* User Menu */}
         <div className="position-relative">
           <button

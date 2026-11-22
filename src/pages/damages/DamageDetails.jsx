@@ -1,425 +1,244 @@
-import { useEffect, useState } from "react";
-import {
-  Link,
-  useNavigate,
-  useParams,
-} from "react-router-dom";
-
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import damageApi from "../../services/damageApi";
-
+import AiTriageCard from "../../components/ai/AiTriageCard";
+import PhotoPicker from "../../components/damages/PhotoPicker";
+import StatusBadge from "../../components/common/StatusBadge";
+import DetailRow from "../../components/common/DetailRow";
+import PageLoader from "../../components/common/PageLoader";
+import { useToast } from "../../components/common/Feedback";
 import { useAuth } from "../../context/AuthContext";
+import { fileUrl } from "../../config";
+import { getErrorMessage } from "../../utils/apiError";
+import { formatDateTime, formatEnum } from "../../utils/format";
+
+/** Allowed next statuses (same rules as the server). */
+const NEXT = {
+  REPORTED: ["UNDER_REVIEW", "REPAIRING", "RESOLVED"],
+  UNDER_REVIEW: ["REPORTED", "REPAIRING", "RESOLVED"],
+  REPAIRING: ["UNDER_REVIEW", "RESOLVED"],
+  RESOLVED: [],
+};
 
 const DamageDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const { role } = useAuth();
+  const toast = useToast();
 
   const [report, setReport] = useState(null);
-
-  const [status, setStatus] = useState("");
-  const [resolutionNote, setResolutionNote] =
-    useState("");
-
   const [loading, setLoading] = useState(true);
-  const [updateLoading, setUpdateLoading] =
-    useState(false);
-
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [status, setStatus] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [newPhotos, setNewPhotos] = useState([]);
+  const [zoom, setZoom] = useState(null);
 
-  const isTechnician = role === "TECHNICIAN";
+  const canManage = role === "TECHNICIAN" || role === "ADMIN";
+  const isEmployee = role === "EMPLOYEE";
 
-  const loadReport = async () => {
+  const load = useCallback(async () => {
     try {
-      setLoading(true);
-      setError("");
-
-      const data =
-        await damageApi.getDamageReportById(id);
-
+      const data = await damageApi.getDamageReportById(id);
       setReport(data);
-      setStatus(data.status || "");
-      setResolutionNote(
-        data.resolutionNote || ""
-      );
-    } catch (error) {
-      console.error(error);
-
-      setError(
-        error.response?.data?.message ||
-          error.response?.data ||
-          "Failed to load damage report."
-      );
+      setStatus(data.status);
+      setNote(data.resolutionNote || "");
+      setError("");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to load the damage report."));
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadReport();
   }, [id]);
 
-  const handleUpdate = async (e) => {
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // While the AI is working, check again every 3 seconds (max ~2 minutes).
+  useEffect(() => {
+    if (report?.aiStatus !== "PENDING") return undefined;
+    let tries = 0;
+    const timer = setInterval(async () => {
+      tries += 1;
+      try {
+        const fresh = await damageApi.getDamageReportById(id);
+        if (fresh.aiStatus !== "PENDING" || tries > 40) {
+          setReport(fresh);
+          clearInterval(timer);
+        }
+      } catch {
+        clearInterval(timer);
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [report?.aiStatus, id]);
+
+  const update = async (e) => {
     e.preventDefault();
-
+    setBusy(true);
     try {
-      setUpdateLoading(true);
-      setError("");
-      setSuccess("");
-
-      const updated =
-        await damageApi.updateDamageReport(
-          id,
-          {
-            status,
-            resolutionNote:
-              resolutionNote.trim() || null,
-          }
-        );
-
+      const updated = await damageApi.updateDamageReport(id, { status, resolutionNote: note.trim() || null });
       setReport(updated);
-
-      setSuccess(
-        "Damage report updated successfully."
-      );
-    } catch (error) {
-      console.error(error);
-
-      setError(
-        error.response?.data?.message ||
-          error.response?.data ||
-          "Failed to update damage report."
-      );
+      toast.success("Damage report updated.");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to update the damage report."));
     } finally {
-      setUpdateLoading(false);
+      setBusy(false);
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "REPORTED":
-        return "bg-danger";
-
-      case "UNDER_REVIEW":
-        return "bg-warning text-dark";
-
-      case "REPAIRING":
-        return "bg-primary";
-
-      case "RESOLVED":
-        return "bg-success";
-
-      default:
-        return "bg-secondary";
+  const uploadPhotos = async () => {
+    setBusy(true);
+    try {
+      setReport(await damageApi.uploadPhotos(id, newPhotos));
+      setNewPhotos([]);
+      toast.success("Photos added.");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to upload photos."));
+    } finally {
+      setBusy(false);
     }
   };
 
-  const formatDate = (date) => {
-    if (!date) {
-      return "-";
+  const rerunAi = async () => {
+    setBusy(true);
+    try {
+      setReport(await damageApi.runAiTriage(id));
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Could not start the AI assessment."));
+    } finally {
+      setBusy(false);
     }
-
-    return new Date(date).toLocaleString();
   };
 
-  if (loading) {
+  if (loading) return <PageLoader text="Loading damage report..." />;
+  if (!report) {
     return (
-      <div className="container mt-4">
-        <div className="text-center py-5">
-          Loading damage report...
-        </div>
+      <div className="container py-4">
+        <div className="alert alert-danger">{error || "Damage report not found."}</div>
       </div>
     );
   }
 
-  if (error && !report) {
-    return (
-      <div className="container mt-4">
-        <div className="alert alert-danger">
-          {error}
-        </div>
-
-        <button
-          className="btn btn-secondary"
-          onClick={() => navigate(-1)}
-        >
-          Back
-        </button>
-      </div>
-    );
-  }
+  const photos = report.photoUrls || [];
+  const options = [report.status, ...(NEXT[report.status] || [])];
 
   return (
-    <div className="container mt-4">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
+    <div className="container py-4">
+      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-          <h2>Damage Report #{report.id}</h2>
-
-          <p className="text-muted mb-0">
-            Damage report details
-          </p>
+          <div className="d-flex align-items-center gap-2">
+            <h2 className="mb-0">Damage #{report.id}</h2>
+            <StatusBadge value={report.status} />
+          </div>
+          <p className="text-muted mb-0">Reported {formatDateTime(report.reportedDate)}</p>
         </div>
-
-        <Link
-          to={
-            role === "EMPLOYEE"
-              ? "/damage"
-              : "/damage/all"
-          }
-          className="btn btn-outline-secondary"
-        >
-          Back
-        </Link>
+        <button className="btn btn-outline-secondary" onClick={() => navigate(-1)}>
+          <i className="bi bi-arrow-left me-1"></i> Back
+        </button>
       </div>
 
-      {error && (
-        <div className="alert alert-danger">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="alert alert-success">
-          {success}
-        </div>
-      )}
-
       <div className="row g-4">
-        {/* Details */}
         <div className="col-lg-7">
-          <div className="card shadow-sm">
-            <div className="card-header">
-              <h5 className="mb-0">
-                Report Information
-              </h5>
-            </div>
+          <AiTriageCard report={report} canRerun={canManage && photos.length > 0} onRerun={rerunAi} busy={busy} />
 
+          <div className="card shadow-sm border-0 mb-4">
+            <div className="card-header bg-white"><h5 className="mb-0">Details</h5></div>
             <div className="card-body">
-              <div className="row mb-3">
-                <div className="col-sm-4 fw-bold">
-                  Report ID
-                </div>
+              <DetailRow label="Asset">
+                <Link to={`/assets/${report.assetId}`}><strong>{report.assetCode}</strong> {report.assetName}</Link>
+              </DetailRow>
+              <DetailRow label="Reported by">
+                {report.employeeName} <span className="text-muted">({report.employeeCode})</span>
+              </DetailRow>
+              <DetailRow label="Description">
+                <div className="bg-light rounded p-3">{report.description}</div>
+              </DetailRow>
+              {report.resolutionNote && <DetailRow label="Resolution">{report.resolutionNote}</DetailRow>}
+              <DetailRow label="Last update">{formatDateTime(report.updatedAt)}</DetailRow>
+            </div>
+          </div>
 
-                <div className="col-sm-8">
-                  {report.id}
-                </div>
+          <div className="card shadow-sm border-0">
+            <div className="card-header bg-white"><h5 className="mb-0">Photos</h5></div>
+            <div className="card-body">
+              {photos.length === 0 && <p className="text-muted">No photos uploaded.</p>}
+              <div className="d-flex flex-wrap gap-2">
+                {photos.map((url, i) => (
+                  <button key={url} type="button" className="btn p-0 border-0" onClick={() => setZoom(url)}
+                          aria-label={`Open photo ${i + 1}`}>
+                    <img src={fileUrl(url)} alt={`Damage photo ${i + 1}`} className="rounded border"
+                         style={{ width: 140, height: 140, objectFit: "cover" }} />
+                  </button>
+                ))}
               </div>
 
-              <div className="row mb-3">
-                <div className="col-sm-4 fw-bold">
-                  Asset
-                </div>
-
-                <div className="col-sm-8">
-                  <strong>
-                    {report.assetCode}
-                  </strong>
-
-                  <br />
-
-                  {report.assetName}
-                </div>
-              </div>
-
-              <div className="row mb-3">
-                <div className="col-sm-4 fw-bold">
-                  Employee
-                </div>
-
-                <div className="col-sm-8">
-                  <strong>
-                    {report.employeeName}
-                  </strong>
-
-                  <br />
-
-                  {report.employeeCode}
-                </div>
-              </div>
-
-              <div className="row mb-3">
-                <div className="col-sm-4 fw-bold">
-                  Reported Date
-                </div>
-
-                <div className="col-sm-8">
-                  {formatDate(
-                    report.reportedDate
+              {(isEmployee || canManage) && photos.length < 5 && report.status !== "RESOLVED" && (
+                <div className="mt-3">
+                  <PhotoPicker files={newPhotos} onChange={setNewPhotos} disabled={busy} />
+                  {newPhotos.length > 0 && (
+                    <button className="btn btn-primary btn-sm mt-2" onClick={uploadPhotos} disabled={busy}>
+                      Upload {newPhotos.length} photo(s)
+                    </button>
                   )}
                 </div>
-              </div>
-
-              <div className="row mb-3">
-                <div className="col-sm-4 fw-bold">
-                  Status
-                </div>
-
-                <div className="col-sm-8">
-                  <span
-                    className={`badge ${getStatusBadge(
-                      report.status
-                    )}`}
-                  >
-                    {report.status}
-                  </span>
-                </div>
-              </div>
-
-              <div className="row mb-3">
-                <div className="col-sm-4 fw-bold">
-                  Description
-                </div>
-
-                <div className="col-sm-8">
-                  <div className="border rounded p-3 bg-light">
-                    {report.description}
-                  </div>
-                </div>
-              </div>
-
-              <div className="row mb-3">
-                <div className="col-sm-4 fw-bold">
-                  Evidence
-                </div>
-
-                <div className="col-sm-8">
-                  {report.evidenceUrl ? (
-                    <a
-                      href={report.evidenceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn btn-sm btn-outline-primary"
-                    >
-                      View Evidence
-                    </a>
-                  ) : (
-                    "-"
-                  )}
-                </div>
-              </div>
-
-              <div className="row">
-                <div className="col-sm-4 fw-bold">
-                  Resolution Note
-                </div>
-
-                <div className="col-sm-8">
-                  {report.resolutionNote || "-"}
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Technician update */}
         <div className="col-lg-5">
-          {isTechnician ? (
-            <div className="card shadow-sm">
-              <div className="card-header">
-                <h5 className="mb-0">
-                  Update Damage Report
-                </h5>
-              </div>
-
+          {canManage && (
+            <div className="card shadow-sm border-0">
+              <div className="card-header bg-white"><h5 className="mb-0">Update status</h5></div>
               <div className="card-body">
-                <form onSubmit={handleUpdate}>
-                  <div className="mb-3">
-                    <label className="form-label">
-                      Status
-                    </label>
-
-                    <select
-                      className="form-select"
-                      value={status}
-                      onChange={(e) =>
-                        setStatus(
-                          e.target.value
-                        )
-                      }
-                      disabled={updateLoading}
-                    >
-                      <option value="REPORTED">
-                        REPORTED
-                      </option>
-
-                      <option value="UNDER_REVIEW">
-                        UNDER_REVIEW
-                      </option>
-
-                      <option value="REPAIRING">
-                        REPAIRING
-                      </option>
-
-                      <option value="RESOLVED">
-                        RESOLVED
-                      </option>
-                    </select>
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label">
-                      Resolution Note
-                    </label>
-
-                    <textarea
-                      className="form-control"
-                      rows="6"
-                      maxLength="1000"
-                      placeholder="Enter resolution details..."
-                      value={resolutionNote}
-                      onChange={(e) =>
-                        setResolutionNote(
-                          e.target.value
-                        )
-                      }
-                      disabled={updateLoading}
-                    />
-
-                    <div className="form-text">
-                      {
-                        resolutionNote.length
-                      }
-                      /1000 characters
+                {report.status === "RESOLVED" ? (
+                  <p className="text-muted mb-0">This report is resolved.</p>
+                ) : (
+                  <form onSubmit={update}>
+                    <div className="mb-3">
+                      <label className="form-label" htmlFor="damage-status">Status</label>
+                      <select id="damage-status" className="form-select" value={status}
+                              onChange={(e) => setStatus(e.target.value)} disabled={busy}>
+                        {options.map((s) => <option key={s} value={s}>{formatEnum(s)}</option>)}
+                      </select>
+                      <div className="form-text">
+                        Set to <strong>Repairing</strong>, then create a maintenance job for the repair.
+                      </div>
                     </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="btn btn-primary w-100"
-                    disabled={updateLoading}
-                  >
-                    {updateLoading ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2"></span>
-                        Updating...
-                      </>
-                    ) : (
-                      "Update Damage Report"
-                    )}
-                  </button>
-                </form>
-              </div>
-            </div>
-          ) : (
-            <div className="card shadow-sm">
-              <div className="card-header">
-                <h5 className="mb-0">
-                  Status Information
-                </h5>
-              </div>
-
-              <div className="card-body">
-                <p className="mb-0">
-                  Damage reports can be updated by
-                  technicians.
-                </p>
+                    <div className="mb-3">
+                      <label className="form-label" htmlFor="damage-note">Resolution note</label>
+                      <textarea id="damage-note" className="form-control" rows="3" maxLength={1000}
+                                value={note} onChange={(e) => setNote(e.target.value)} disabled={busy} />
+                    </div>
+                    <button type="submit" className="btn btn-primary w-100" disabled={busy}>Save</button>
+                  </form>
+                )}
+                {report.status === "REPAIRING" && (
+                  <Link to="/maintenance" className="btn btn-outline-primary w-100 mt-2">
+                    <i className="bi bi-tools me-1"></i> Go to maintenance
+                  </Link>
+                )}
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {zoom && (
+        <>
+          <div className="modal d-block" role="dialog" aria-modal="true" onClick={() => setZoom(null)}>
+            <div className="modal-dialog modal-dialog-centered modal-lg">
+              <div className="modal-content bg-transparent border-0">
+                <img src={fileUrl(zoom)} alt="Damage photo enlarged" className="img-fluid rounded" />
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop show"></div>
+        </>
+      )}
     </div>
   );
 };

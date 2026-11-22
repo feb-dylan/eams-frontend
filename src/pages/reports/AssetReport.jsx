@@ -6,6 +6,7 @@ import reportApi from "../../services/reportApi";
 import ReportSummaryCard from "../../components/reports/ReportSummaryCard";
 import ExportButtons from "../../components/reports/ExportButtons";
 import AssetStatusChart from "../../components/dashboard/AssetStatusChart";
+import { getErrorMessage } from "../../utils/apiError";
 
 const AssetReport = () => {
   const [report, setReport] = useState(null);
@@ -23,8 +24,7 @@ const AssetReport = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          "Failed to load asset report."
+        getErrorMessage(err, "Failed to load asset report.")
       );
     } finally {
       setLoading(false);

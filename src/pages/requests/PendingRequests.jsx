@@ -1,250 +1,170 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-
 import assetRequestApi from "../../services/assetRequestApi";
+import StatusBadge from "../../components/common/StatusBadge";
+import PageLoader from "../../components/common/PageLoader";
+import { useConfirm, useToast } from "../../components/common/Feedback";
 import { useAuth } from "../../context/AuthContext";
+import { getErrorMessage } from "../../utils/apiError";
+import { formatDate, formatRelative } from "../../utils/format";
+
+const PRIORITY_ORDER = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
 
 const PendingRequests = () => {
-  const { userId } = useAuth();
+  const { role } = useAuth();
+  const toast = useToast();
+  const confirm = useConfirm();
+  const canDecide = role === "MANAGER";
 
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [busyId, setBusyId] = useState(null);
+  const [rejecting, setRejecting] = useState(null);
+  const [reason, setReason] = useState("");
 
-  const [rejectingRequest, setRejectingRequest] = useState(null);
-  const [rejectionReason, setRejectionReason] = useState("");
-
-  const loadRequests = async () => {
+  const load = useCallback(async () => {
     try {
-      setLoading(true);
       setError("");
       const data = await assetRequestApi.getPendingRequests();
+      // most urgent first, then oldest first
+      data.sort((a, b) =>
+        (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2)
+        || new Date(a.requestDate) - new Date(b.requestDate));
       setRequests(data);
     } catch (err) {
-      console.error(err);
-      setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to load pending requests."
-      );
+      setError(getErrorMessage(err, "Failed to load pending requests."));
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadRequests();
   }, []);
 
-  const handleApprove = async (requestId) => {
-    if (!window.confirm("Approve this request?")) return;
+  useEffect(() => {
+    load();
+  }, [load]);
 
+  const approve = async (r) => {
+    const what = r.assetName ? `${r.assetCode} ${r.assetName}` : `a ${r.categoryName}`;
+    if (!(await confirm({ title: "Approve request", message: `Approve ${r.employeeName}'s request for ${what}?`,
+      confirmText: "Approve", variant: "success" }))) return;
+    setBusyId(r.id);
     try {
-      setActionLoading(true);
-      setError("");
-      setSuccess("");
-
-      await assetRequestApi.approveRequest(requestId, userId);
-
-      setSuccess("Request approved successfully.");
-      await loadRequests();
+      await assetRequestApi.approveRequest(r.id);
+      toast.success("Request approved.");
+      await load();
     } catch (err) {
-      console.error(err);
-      setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to approve request."
-      );
+      toast.error(getErrorMessage(err, "Failed to approve request."));
     } finally {
-      setActionLoading(false);
+      setBusyId(null);
     }
   };
 
-  const handleRejectSubmit = async () => {
-    if (!rejectingRequest) return;
-
-    const trimmed = rejectionReason.trim();
-
-    if (!trimmed) {
-      setError("Rejection reason is required.");
-      return;
-    }
-
-    if (trimmed.length > 500) {
-      setError("Rejection reason must not exceed 500 characters.");
-      return;
-    }
-
+  const submitReject = async (e) => {
+    e.preventDefault();
+    if (!reason.trim()) return;
+    setBusyId(rejecting.id);
     try {
-      setActionLoading(true);
-      setError("");
-      setSuccess("");
-
-      await assetRequestApi.rejectRequest(
-        rejectingRequest.id,
-        userId,
-        trimmed
-      );
-
-      setSuccess("Request rejected.");
-      setRejectingRequest(null);
-      setRejectionReason("");
-      await loadRequests();
+      await assetRequestApi.rejectRequest(rejecting.id, reason.trim());
+      toast.success("Request rejected.");
+      setRejecting(null);
+      setReason("");
+      await load();
     } catch (err) {
-      console.error(err);
-      setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to reject request."
-      );
+      toast.error(getErrorMessage(err, "Failed to reject request."));
     } finally {
-      setActionLoading(false);
+      setBusyId(null);
     }
   };
+
+  if (loading) return <PageLoader text="Loading pending requests..." />;
 
   return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h2>Pending Requests</h2>
-          <p className="text-muted mb-0">
-            Approve or reject employee asset requests
-          </p>
-        </div>
-
-        <button
-          className="btn btn-outline-secondary"
-          onClick={loadRequests}
-          disabled={loading}
-        >
-          Refresh
-        </button>
+    <div className="container-fluid py-4">
+      <div className="mb-4">
+        <h2 className="mb-1">Pending Requests</h2>
+        <p className="text-muted mb-0">Most urgent first</p>
       </div>
 
-      {error && <div className="alert alert-danger">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
+      {error && <div className="alert alert-danger" role="alert">{error}</div>}
 
-      {/* Reject modal (inline) */}
-      {rejectingRequest && (
-        <div className="card shadow-sm mb-4 border-danger">
-          <div className="card-header bg-danger text-white">
-            <h5 className="mb-0">
-              Reject Request #{rejectingRequest.id}
-            </h5>
-          </div>
+      {rejecting && (
+        <div className="card border-danger shadow-sm mb-4">
           <div className="card-body">
-            <label className="form-label">Rejection Reason</label>
-            <textarea
-              className="form-control mb-2"
-              rows="3"
-              maxLength={500}
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              disabled={actionLoading}
-            />
-            <small className="text-muted">
-              {rejectionReason.length}/500
-            </small>
-
-            <div className="d-flex gap-2 mt-3">
-              <button
-                className="btn btn-danger"
-                onClick={handleRejectSubmit}
-                disabled={actionLoading}
-              >
-                {actionLoading ? "Rejecting..." : "Confirm Reject"}
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  setRejectingRequest(null);
-                  setRejectionReason("");
-                }}
-                disabled={actionLoading}
-              >
-                Cancel
-              </button>
-            </div>
+            <form onSubmit={submitReject}>
+              <label className="form-label fw-semibold" htmlFor="reject-reason">
+                Reason for rejecting {rejecting.employeeName}&apos;s request
+              </label>
+              <textarea id="reject-reason" className="form-control mb-2" rows="3" maxLength={500}
+                        value={reason} onChange={(e) => setReason(e.target.value)} autoFocus required />
+              <div className="d-flex gap-2">
+                <button type="submit" className="btn btn-danger" disabled={!reason.trim() || busyId}>
+                  Reject request
+                </button>
+                <button type="button" className="btn btn-outline-secondary" onClick={() => setRejecting(null)}>
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
       <div className="card shadow-sm">
-        <div className="table-responsive">
-          <table className="table table-hover align-middle mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>ID</th>
-                <th>Employee ID</th>
-                <th>Asset ID</th>
-                <th>Reason</th>
-                <th>Requested</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+        {requests.length === 0 ? (
+          <div className="card-body text-center text-muted py-5">
+            <i className="bi bi-check2-all fs-1 d-block mb-2"></i>
+            No pending requests. Nice work!
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead className="table-light">
                 <tr>
-                  <td colSpan="6" className="text-center py-4">
-                    Loading...
-                  </td>
+                  <th>Employee</th>
+                  <th>Asked for</th>
+                  <th>Reason</th>
+                  <th>Priority</th>
+                  <th>Needed by</th>
+                  <th>Requested</th>
+                  <th className="text-end">Actions</th>
                 </tr>
-              ) : requests.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-4">
-                    No pending requests.
-                  </td>
-                </tr>
-              ) : (
-                requests.map((req) => (
-                  <tr key={req.id}>
-                    <td>{req.id}</td>
-                    <td>{req.employeeId}</td>
-                    <td>{req.assetId ?? "-"}</td>
-                    <td className="text-truncate" style={{ maxWidth: 260 }}>
-                      {req.reason}
+              </thead>
+              <tbody>
+                {requests.map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      <div className="fw-semibold">{r.employeeName}</div>
+                      <div className="small text-muted">{r.employeeCode}</div>
                     </td>
                     <td>
-                      {req.requestDate
-                        ? new Date(req.requestDate).toLocaleString()
-                        : "-"}
+                      {r.assetId ? <><strong>{r.assetCode}</strong> {r.assetName}</> : <>Any {r.categoryName}</>}
                     </td>
-                    <td>
-                      <div className="d-flex gap-2">
-                        <Link
-                          to={`/requests/${req.id}`}
-                          className="btn btn-sm btn-outline-secondary"
-                        >
-                          View
-                        </Link>
-                        <button
-                          className="btn btn-sm btn-success"
-                          onClick={() => handleApprove(req.id)}
-                          disabled={actionLoading}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() => {
-                            setRejectingRequest(req);
-                            setRejectionReason("");
-                          }}
-                          disabled={actionLoading}
-                        >
-                          Reject
-                        </button>
-                      </div>
+                    <td className="small" style={{ maxWidth: 280 }}>{r.reason}</td>
+                    <td><StatusBadge value={r.priority} /></td>
+                    <td>{formatDate(r.neededBy)}</td>
+                    <td className="small text-muted">{formatRelative(r.requestDate)}</td>
+                    <td className="text-end text-nowrap">
+                      <Link to={`/requests/${r.id}`} className="btn btn-sm btn-outline-secondary me-1"
+                            aria-label="View details"><i className="bi bi-eye"></i></Link>
+                      {canDecide && (
+                        <>
+                          <button className="btn btn-sm btn-success me-1" disabled={busyId === r.id}
+                                  onClick={() => approve(r)} aria-label="Approve">
+                            <i className="bi bi-check-lg"></i>
+                          </button>
+                          <button className="btn btn-sm btn-outline-danger" disabled={busyId === r.id}
+                                  onClick={() => { setRejecting(r); setReason(""); }} aria-label="Reject">
+                            <i className="bi bi-x-lg"></i>
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

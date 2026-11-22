@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 
 import employeeApi from "../../services/employeeApi";
 import authApi from "../../services/authApi";
+import { useAuth } from "../../context/AuthContext";
 
 import ProfileForm from "../../components/profile/ProfileForm";
 import ChangePasswordForm from "../../components/common/ChangePasswordForm";
+import { getErrorMessage } from "../../utils/apiError";
 
 const Profile = () => {
+  const { storeToken } = useAuth();
   const [employee, setEmployee] = useState(null);
 
   const [loading, setLoading] = useState(true);
@@ -31,9 +34,7 @@ const Profile = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to load profile."
+        getErrorMessage(err, "Failed to load profile.")
       );
     } finally {
       setLoading(false);
@@ -79,10 +80,14 @@ const Profile = () => {
       setError("");
       setSuccess("");
 
-      await authApi.changePassword(
+      // The server invalidates all old tokens and returns a new one.
+      const result = await authApi.changePassword(
         currentPassword,
         newPassword
       );
+      if (result?.token) {
+        storeToken(result.token);
+      }
 
       setSuccess("Password changed successfully.");
     } catch (err) {

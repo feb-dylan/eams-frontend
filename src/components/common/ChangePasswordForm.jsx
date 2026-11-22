@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getErrorMessage } from "../../utils/apiError";
 
 const ChangePasswordForm = ({ onSubmit, loading = false }) => {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -49,9 +50,7 @@ const ChangePasswordForm = ({ onSubmit, loading = false }) => {
     } catch (err) {
       console.error(err);
       setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to change password."
+        getErrorMessage(err, "Failed to change password.")
       );
     }
   };

@@ -1,559 +1,160 @@
-import { useEffect, useState } from "react";
-
-import { useAuth } from "../../context/AuthContext";
-
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import assetRequestApi from "../../services/assetRequestApi";
 import assetApi from "../../services/assetApi";
-
+import categoryApi from "../../services/categoryApi";
 import RequestForm from "../../components/requests/RequestForm";
+import StatusBadge from "../../components/common/StatusBadge";
+import PageLoader from "../../components/common/PageLoader";
+import { useToast } from "../../components/common/Feedback";
+import { getErrorMessage } from "../../utils/apiError";
+import { formatDate, formatDateTime } from "../../utils/format";
 
 const MyRequests = () => {
-  const {
-    employeeId,
-    refreshEmployee,
-  } = useAuth();
+  const toast = useToast();
 
   const [requests, setRequests] = useState([]);
   const [availableAssets, setAvailableAssets] = useState([]);
-
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [assetsLoading, setAssetsLoading] = useState(false);
-  const [formLoading, setFormLoading] = useState(false);
-
+  const [profileMissing, setProfileMissing] = useState(false);
   const [showForm, setShowForm] = useState(false);
-
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  const [profileChecked, setProfileChecked] = useState(
-    !!employeeId
-  );
-
-  // =========================================================
-  // CHECK / REFRESH EMPLOYEE PROFILE
-  // =========================================================
-
-  useEffect(() => {
-    const checkEmployeeProfile = async () => {
-      // Employee ID already exists
-      if (employeeId) {
-        setProfileChecked(true);
-        return;
-      }
-
-      // Employee ID is missing.
-      // Try to fetch employee profile from backend.
-      try {
-        setLoading(true);
-        setError("");
-
-        await refreshEmployee();
-
-        // refreshEmployee() updates employeeId.
-        // This effect will run again.
-      } catch (err) {
-        console.error(
-          "Employee profile not found:",
-          err
-        );
-
-        setProfileChecked(true);
-        setLoading(false);
-      }
-    };
-
-    checkEmployeeProfile();
-  }, [employeeId, refreshEmployee]);
-
-  // =========================================================
-  // LOAD MY REQUESTS
-  // =========================================================
-
-  useEffect(() => {
-    const loadRequests = async () => {
-      if (!employeeId) {
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError("");
-
-        const data =
-          await assetRequestApi.getMyRequests(
-            employeeId
-          );
-
-        setRequests(
-          Array.isArray(data) ? data : []
-        );
-      } catch (err) {
-        console.error(
-          "Failed to load requests:",
-          err
-        );
-
-        setError(
-          err.response?.data?.message ||
-            (typeof err.response?.data === "string"
-              ? err.response.data
-              : "Failed to load your requests.")
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadRequests();
-  }, [employeeId]);
-
-  // =========================================================
-  // LOAD AVAILABLE ASSETS
-  // =========================================================
-
-  const loadAvailableAssets = async () => {
-    try {
-      setAssetsLoading(true);
-
-      const data =
-        await assetApi.getAssetsByStatus(
-          "AVAILABLE"
-        );
-
-      console.log(
-        "Available assets:",
-        data
-      );
-
-      // If backend returns an array
-      if (Array.isArray(data)) {
-        setAvailableAssets(data);
-      }
-
-      // If backend returns Spring Page
-      else if (Array.isArray(data?.content)) {
-        setAvailableAssets(data.content);
-      }
-
-      // Unexpected response
-      else {
-        console.warn(
-          "Unexpected available assets response:",
-          data
-        );
-
-        setAvailableAssets([]);
-      }
-    } catch (err) {
-      console.error(
-        "Failed to load available assets:",
-        err
-      );
-
-      setAvailableAssets([]);
-
-      setError(
-        err.response?.data?.message ||
-          (typeof err.response?.data === "string"
-            ? err.response.data
-            : "Failed to load available assets.")
-      );
-    } finally {
-      setAssetsLoading(false);
-    }
-  };
-
-  // =========================================================
-  // LOAD AVAILABLE ASSETS WHEN EMPLOYEE ID EXISTS
-  // =========================================================
-
-  useEffect(() => {
-    if (!employeeId) {
-      return;
-    }
-
-    loadAvailableAssets();
-  }, [employeeId]);
-
-  // =========================================================
-  // OPEN NEW REQUEST FORM
-  // =========================================================
-
-  const handleOpenForm = async () => {
+  const load = useCallback(async () => {
     setError("");
-    setSuccess("");
-
-    if (!employeeId) {
-      setError(
-        "Employee profile is not available. Please complete your employee profile first."
-      );
-      return;
+    try {
+      const [mine, assets, cats] = await Promise.all([
+        assetRequestApi.getMyRequests(),
+        assetApi.getAssetsByStatus("AVAILABLE"),
+        categoryApi.getCategories(),
+      ]);
+      setRequests(mine);
+      setAvailableAssets(assets);
+      setCategories(cats);
+      setProfileMissing(false);
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setProfileMissing(true);
+      } else {
+        setError(getErrorMessage(err, "Failed to load your requests."));
+      }
+    } finally {
+      setLoading(false);
     }
+  }, []);
 
-    // Get the latest available assets
-    await loadAvailableAssets();
-
-    setShowForm(true);
-  };
-
-  // =========================================================
-  // CREATE REQUEST
-  // =========================================================
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const handleCreate = async (data) => {
+    setSaving(true);
     try {
-      setFormLoading(true);
-      setError("");
-      setSuccess("");
-
-      // Make sure employeeId exists
-      if (!employeeId) {
-        throw new Error(
-          "Employee profile is not available. Please complete your employee profile first."
-        );
-      }
-
-      // Validate asset
-      if (!data.assetId) {
-        throw new Error(
-          "Please select an asset."
-        );
-      }
-
-      // Validate reason
-      if (!data.reason?.trim()) {
-        throw new Error(
-          "Please provide a reason."
-        );
-      }
-
-      // Create request
-      await assetRequestApi.createRequest({
-        employeeId: employeeId,
-        assetId: Number(data.assetId),
-        reason: data.reason.trim(),
-      });
-
-      // Success
-      setSuccess(
-        "Request submitted successfully."
-      );
-
+      await assetRequestApi.createRequest(data);
+      toast.success("Request submitted. A manager will review it.");
       setShowForm(false);
-
-      // Reload requests
-      const updatedRequests =
-        await assetRequestApi.getMyRequests(
-          employeeId
-        );
-
-      setRequests(
-        Array.isArray(updatedRequests)
-          ? updatedRequests
-          : []
-      );
-
-      // Reload available assets
-      await loadAvailableAssets();
-
-    } catch (err) {
-      console.error(
-        "Failed to create asset request:",
-        err
-      );
-
-      setError(
-        err.response?.data?.message ||
-          (typeof err.response?.data === "string"
-            ? err.response.data
-            : err.message) ||
-          "Failed to submit asset request."
-      );
+      await load();
     } finally {
-      setFormLoading(false);
+      setSaving(false);
     }
   };
 
-  // =========================================================
-  // LOADING
-  // =========================================================
+  if (loading) return <PageLoader text="Loading your requests..." />;
 
-  if (loading) {
+  if (profileMissing) {
     return (
-      <div className="container mt-5 text-center">
-        <div
-          className="spinner-border"
-          role="status"
-        >
-          <span className="visually-hidden">
-            Loading...
-          </span>
-        </div>
-
-        <p className="mt-3">
-          Loading requests...
-        </p>
-      </div>
-    );
-  }
-
-  // =========================================================
-  // NO EMPLOYEE PROFILE
-  // =========================================================
-
-  if (!employeeId && profileChecked) {
-    return (
-      <div className="container mt-5">
+      <div className="container py-4">
         <div className="alert alert-warning">
-          <h5 className="alert-heading">
-            Employee profile not found
-          </h5>
-
-          <p className="mb-0">
-            Please complete your employee profile
-            before creating asset requests.
-          </p>
+          Please complete your employee profile on the <Link to="/dashboard">dashboard</Link> before
+          requesting assets.
         </div>
       </div>
     );
   }
-
-  // =========================================================
-  // UI
-  // =========================================================
 
   return (
-    <div className="container-fluid px-4 py-4">
-
-      {/* =====================================================
-          HEADER
-      ====================================================== */}
-
-      <div className="d-flex justify-content-between align-items-center mb-4">
-
+    <div className="container-fluid py-4">
+      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-          <h2 className="fw-bold mb-1">
-            My Requests
-          </h2>
-
-          <p className="text-muted mb-0">
-            View and manage your asset requests.
-          </p>
+          <h2 className="mb-1">My Requests</h2>
+          <p className="text-muted mb-0">Request assets and follow their approval</p>
         </div>
-
-        <button
-          className="btn btn-primary"
-          onClick={handleOpenForm}
-          disabled={assetsLoading}
-        >
-          {assetsLoading ? (
-            <>
-              <span
-                className="spinner-border spinner-border-sm me-2"
-                role="status"
-                aria-hidden="true"
-              ></span>
-
-              Loading Assets...
-            </>
-          ) : (
-            <>
-              <i className="bi bi-plus-lg me-2"></i>
-              New Request
-            </>
-          )}
-        </button>
-
+        {!showForm && (
+          <button type="button" className="btn btn-primary" onClick={() => setShowForm(true)}>
+            <i className="bi bi-plus-lg me-1"></i> New Request
+          </button>
+        )}
       </div>
 
-      {/* =====================================================
-          SUCCESS
-      ====================================================== */}
-
-      {success && (
-        <div className="alert alert-success">
-          <i className="bi bi-check-circle me-2"></i>
-          {success}
-        </div>
-      )}
-
-      {/* =====================================================
-          ERROR
-      ====================================================== */}
-
-      {error && (
-        <div className="alert alert-danger">
-          <i className="bi bi-exclamation-triangle me-2"></i>
-          {error}
-        </div>
-      )}
-
-      {/* =====================================================
-          REQUEST FORM
-      ====================================================== */}
+      {error && <div className="alert alert-danger" role="alert">{error}</div>}
 
       {showForm && (
-        <div className="card shadow-sm border-0 mb-4">
-
-          <div className="card-header bg-white border-0 pt-3">
-
-            <div className="d-flex justify-content-between align-items-center">
-
-              <h5 className="mb-0">
-                Create Asset Request
-              </h5>
-
-              <button
-                type="button"
-                className="btn-close"
-                onClick={() => setShowForm(false)}
-                disabled={formLoading}
-              ></button>
-
-            </div>
-
-          </div>
-
+        <div className="card shadow-sm mb-4">
+          <div className="card-header"><h5 className="mb-0">New asset request</h5></div>
           <div className="card-body">
-
-            {assetsLoading ? (
-              <div className="text-center py-4">
-
-                <div
-                  className="spinner-border"
-                  role="status"
-                >
-                  <span className="visually-hidden">
-                    Loading...
-                  </span>
-                </div>
-
-                <p className="text-muted mt-3 mb-0">
-                  Loading available assets...
-                </p>
-
-              </div>
-            ) : availableAssets.length === 0 ? (
-
-              <div className="alert alert-warning mb-0">
-
-                <i className="bi bi-box-seam me-2"></i>
-
-                There are currently no available
-                assets to request.
-
-              </div>
-
-            ) : (
-
-              <RequestForm
-                assets={availableAssets}
-                onSubmit={handleCreate}
-                onCancel={() =>
-                  setShowForm(false)
-                }
-                loading={formLoading}
-              />
-
-            )}
-
+            <RequestForm assets={availableAssets} categories={categories}
+                         onSubmit={handleCreate} onCancel={() => setShowForm(false)} loading={saving} />
           </div>
-
         </div>
       )}
 
-      {/* =====================================================
-          REQUEST LIST
-      ====================================================== */}
-
-      <div className="card shadow-sm border-0">
-
-        <div className="card-header bg-white border-0 pt-3">
-
-          <h5 className="mb-0">
-            Request History
-          </h5>
-
+      <div className="card shadow-sm">
+        <div className="card-header d-flex justify-content-between align-items-center">
+          <h5 className="mb-0">Request history</h5>
+          <span className="badge bg-secondary">{requests.length}</span>
         </div>
-
-        <div className="card-body">
-
-          {requests.length === 0 ? (
-
-            <div className="text-center text-muted py-5">
-
-              <i className="bi bi-inbox fs-1 d-block mb-3"></i>
-
-              <p className="mb-0">
-                You have no asset requests yet.
-              </p>
-
-            </div>
-
-          ) : (
-
-            <div className="table-responsive">
-
-              <table className="table align-middle">
-
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Asset ID</th>
-                    <th>Reason</th>
-                    <th>Status</th>
-                    <th>Request Date</th>
+        {requests.length === 0 ? (
+          <div className="card-body text-center text-muted py-5">
+            <i className="bi bi-inbox fs-1 d-block mb-2"></i>
+            You have not requested any assets yet.
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-hover align-middle mb-0">
+              <thead className="table-light">
+                <tr>
+                  <th>Asset / category</th>
+                  <th>Requested</th>
+                  <th>Priority</th>
+                  <th>Needed by</th>
+                  <th>Status</th>
+                  <th><span className="visually-hidden">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      {r.assetId ? (
+                        <><strong>{r.assetCode}</strong> {r.assetName}</>
+                      ) : (
+                        <>Any <strong>{r.categoryName}</strong></>
+                      )}
+                    </td>
+                    <td>{formatDateTime(r.requestDate)}</td>
+                    <td><StatusBadge value={r.priority} /></td>
+                    <td>{formatDate(r.neededBy)}</td>
+                    <td>
+                      <StatusBadge value={r.status} />
+                      {r.status === "REJECTED" && r.rejectionReason && (
+                        <div className="small text-muted mt-1">{r.rejectionReason}</div>
+                      )}
+                    </td>
+                    <td className="text-end">
+                      <Link to={`/requests/${r.id}`} className="btn btn-sm btn-outline-primary"
+                            aria-label={`View request ${r.id}`}>
+                        <i className="bi bi-eye"></i>
+                      </Link>
+                    </td>
                   </tr>
-                </thead>
-
-                <tbody>
-
-                  {requests.map((request) => (
-
-                    <tr key={request.id}>
-
-                      <td>
-                        #{request.id}
-                      </td>
-
-                      <td>
-                        {request.assetId ?? "-"}
-                      </td>
-
-                      <td>
-                        {request.reason}
-                      </td>
-
-                      <td>
-                        <span className="badge bg-secondary">
-                          {request.status}
-                        </span>
-                      </td>
-
-                      <td>
-                        {request.requestDate
-                          ? new Date(
-                              request.requestDate
-                            ).toLocaleString()
-                          : "-"}
-                      </td>
-
-                    </tr>
-
-                  ))}
-
-                </tbody>
-
-              </table>
-
-            </div>
-
-          )}
-
-        </div>
-
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-
     </div>
   );
 };

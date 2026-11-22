@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import categoryApi from "../../services/categoryApi";
+import { getErrorMessage } from "../../utils/apiError";
 
 const CategoryDetails = () => {
   const { id } = useParams();
@@ -29,9 +30,7 @@ const CategoryDetails = () => {
         console.error(error);
 
         setError(
-          error.response?.data?.message ||
-            error.response?.data ||
-            "Failed to load category."
+          getErrorMessage(error, "Failed to load category.")
         );
       } finally {
         setLoading(false);
@@ -51,9 +50,7 @@ const CategoryDetails = () => {
         console.error(error);
 
         setAssetsError(
-          error.response?.data?.message ||
-            error.response?.data ||
-            "Failed to load assets."
+          getErrorMessage(error, "Failed to load assets.")
         );
       } finally {
         setAssetsLoading(false);

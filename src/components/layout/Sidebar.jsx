@@ -17,6 +17,12 @@ const NAV_SECTIONS = [
     title: "Assets",
     items: [
       {
+        to: "/scan",
+        label: "Scan QR",
+        icon: "bi-qr-code-scan",
+        roles: ["ADMIN", "MANAGER", "EMPLOYEE", "TECHNICIAN"],
+      },
+      {
         to: "/assets",
         label: "Assets",
         icon: "bi-box-seam",
@@ -32,7 +38,7 @@ const NAV_SECTIONS = [
         to: "/assignments",
         label: "Assignments",
         icon: "bi-person-check",
-        roles: ["ADMIN"],
+        roles: ["ADMIN", "MANAGER"],
       },
     ],
   },
@@ -55,7 +61,7 @@ const NAV_SECTIONS = [
         to: "/requests/pending",
         label: "Pending Requests",
         icon: "bi-inbox",
-        roles: ["MANAGER"],
+        roles: ["MANAGER", "ADMIN"],
       },
       {
         to: "/requests/approved",
@@ -73,12 +79,24 @@ const NAV_SECTIONS = [
         to: "/damage/all",
         label: "Damage Reports",
         icon: "bi-exclamation-octagon",
-        roles: ["ADMIN", "TECHNICIAN"],
+        roles: ["ADMIN", "TECHNICIAN", "MANAGER"],
+      },
+      {
+        to: "/maintenance/my",
+        label: "My Jobs",
+        icon: "bi-wrench-adjustable",
+        roles: ["TECHNICIAN"],
       },
       {
         to: "/maintenance",
         label: "Maintenance",
         icon: "bi-tools",
+        roles: ["ADMIN", "TECHNICIAN"],
+      },
+      {
+        to: "/audits",
+        label: "Stock-take",
+        icon: "bi-clipboard-check",
         roles: ["ADMIN", "TECHNICIAN"],
       },
     ],
@@ -98,22 +116,46 @@ const NAV_SECTIONS = [
         icon: "bi-building",
         roles: ["ADMIN", "MANAGER"],
       },
+      {
+        to: "/users",
+        label: "Users & Invites",
+        icon: "bi-person-gear",
+        roles: ["ADMIN"],
+      },
     ],
   },
   {
     title: "Insights",
     items: [
       {
+        to: "/insights",
+        label: "Insights",
+        icon: "bi-lightbulb",
+        roles: ["ADMIN", "MANAGER"],
+      },
+      {
         to: "/reports",
         label: "Reports",
         icon: "bi-bar-chart-line",
         roles: ["ADMIN", "MANAGER"],
+      },
+      {
+        to: "/audit-log",
+        label: "Audit Log",
+        icon: "bi-journal-text",
+        roles: ["ADMIN"],
       },
     ],
   },
   {
     title: "Account",
     items: [
+      {
+        to: "/notifications",
+        label: "Notifications",
+        icon: "bi-bell",
+        roles: ["ADMIN", "MANAGER", "EMPLOYEE", "TECHNICIAN"],
+      },
       {
         to: "/profile",
         label: "My Profile",
@@ -175,7 +217,7 @@ const Sidebar = ({ open, onClose }) => {
                   <li key={item.to} className="nav-item">
                     <NavLink
                       to={item.to}
-                      end={item.to === "/dashboard"}
+                      end={["/dashboard", "/maintenance", "/damage", "/requests"].includes(item.to)}
                       className={({ isActive }) =>
                         `nav-link d-flex align-items-center ${
                           isActive ? "active" : ""
@@ -195,7 +237,7 @@ const Sidebar = ({ open, onClose }) => {
 
         <div className="sidebar-footer">
           <i className="bi bi-info-circle me-1"></i>
-          EAMS v1.0
+          EAMS v2.0
         </div>
       </aside>
     </>

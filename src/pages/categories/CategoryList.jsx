@@ -4,8 +4,11 @@ import { Link } from "react-router-dom";
 import categoryApi from "../../services/categoryApi";
 import CategoryForm from "../../components/categories/CategoryForm";
 import { useAuth } from "../../context/AuthContext";
+import { getErrorMessage } from "../../utils/apiError";
+import { useConfirm } from "../../components/common/Feedback";
 
 const CategoryList = () => {
+  const confirm = useConfirm();
   const { role } = useAuth();
 
   const [categories, setCategories] = useState([]);
@@ -33,8 +36,7 @@ const CategoryList = () => {
       console.error(error);
 
       setError(
-        error.response?.data?.message ||
-          "Failed to load categories."
+        getErrorMessage(error, "Failed to load categories.")
       );
     } finally {
       setLoading(false);
@@ -90,7 +92,7 @@ const CategoryList = () => {
   };
 
   const handleDelete = async (id) => {
-    const confirmed = window.confirm(
+    const confirmed = await confirm(
       "Are you sure you want to delete this category?"
     );
 
@@ -111,9 +113,7 @@ const CategoryList = () => {
       console.error(error);
 
       setError(
-        error.response?.data?.message ||
-          error.response?.data ||
-          "Failed to delete category."
+        getErrorMessage(error, "Failed to delete category.")
       );
     }
   };

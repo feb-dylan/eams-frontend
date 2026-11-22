@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { userApi } from "../../services/featureApi";
+import { getErrorMessage } from "../../utils/apiError";
 
 const MaintenanceForm = ({
   assets,
@@ -19,6 +21,12 @@ const MaintenanceForm = ({
   const [repairCost, setRepairCost] =
     useState("");
   const [notes, setNotes] = useState("");
+  const [technicianUserId, setTechnicianUserId] = useState("");
+  const [technicians, setTechnicians] = useState([]);
+
+  useEffect(() => {
+    userApi.technicians().then(setTechnicians).catch(() => setTechnicians([]));
+  }, []);
 
   const [error, setError] = useState("");
 
@@ -114,6 +122,7 @@ const MaintenanceForm = ({
         assetId: Number(assetId),
         technician:
           technician.trim() || null,
+        technicianUserId: technicianUserId ? Number(technicianUserId) : undefined,
         description: description.trim(),
         startDate,
         endDate: endDate || null,
@@ -127,9 +136,7 @@ const MaintenanceForm = ({
       console.error(error);
 
       setError(
-        error.response?.data?.message ||
-          error.response?.data ||
-          "Failed to save maintenance record."
+        getErrorMessage(error, "Failed to save maintenance record.")
       );
     }
   };
@@ -177,21 +184,41 @@ const MaintenanceForm = ({
 
         {/* Technician */}
         <div className="col-md-6">
-          <label className="form-label">
+          <label className="form-label" htmlFor="maintenance-technician">
             Technician
           </label>
 
-          <input
-            type="text"
-            className="form-control"
-            maxLength="100"
-            placeholder="Technician name"
-            value={technician}
-            onChange={(e) =>
-              setTechnician(e.target.value)
-            }
-            disabled={loading}
-          />
+          {technicians.length > 0 ? (
+            <select
+              id="maintenance-technician"
+              className="form-select"
+              value={technicianUserId}
+              onChange={(e) => setTechnicianUserId(e.target.value)}
+              disabled={loading}
+            >
+              <option value="">
+                {initialData?.technician ? `Keep: ${initialData.technician}` : "Me / unassigned"}
+              </option>
+              {technicians.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.employeeName ? `${t.employeeName} (${t.email})` : t.email}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              id="maintenance-technician"
+              type="text"
+              className="form-control"
+              maxLength="100"
+              placeholder="Technician name"
+              value={technician}
+              onChange={(e) =>
+                setTechnician(e.target.value)
+              }
+              disabled={loading}
+            />
+          )}
         </div>
 
         {/* Start Date */}

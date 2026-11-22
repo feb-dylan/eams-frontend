@@ -1,50 +1,22 @@
 import api from "./api";
 
 const authApi = {
-  // =========================================================
-  // REGISTER
-  // =========================================================
-  register: async (email, password) => {
-    const response = await api.post("/api/auth/register", {
-      email,
-      password,
-    });
+  register: async (email, password) => (await api.post("/api/auth/register", { email, password })).data,
 
-    return response.data;
-  },
+  login: async (email, password) => (await api.post("/api/auth/login", { email, password })).data,
 
-  // =========================================================
-  // LOGIN
-  // =========================================================
-  login: async (email, password) => {
-    const response = await api.post("/api/auth/login", {
-      email,
-      password,
-    });
+  /** { id, email, role, employeeId } */
+  getMe: async () => (await api.get("/api/auth/me")).data,
 
-    return response.data;
-  },
+  /** Returns { message, token } - the NEW token must be stored (old tokens stop working). */
+  changePassword: async (currentPassword, newPassword) =>
+    (await api.put("/api/auth/change-password", { currentPassword, newPassword })).data,
 
-  // =========================================================
-  // CURRENT LOGGED-IN USER
-  // =========================================================
-  getMe: async () => {
-    const response = await api.get("/api/auth/me");
+  forgotPassword: async (email) => (await api.post("/api/auth/forgot-password", { email })).data,
 
-    return response.data;
-  },
-
-  // =========================================================
-  // CHANGE PASSWORD
-  // =========================================================
-  changePassword: async (currentPassword, newPassword) => {
-    const response = await api.put("/api/auth/change-password", {
-      currentPassword,
-      newPassword,
-    });
-
-    return response.data;
-  },
+  /** Used for both "forgot password" and invitation links. */
+  resetPassword: async (token, newPassword) =>
+    (await api.post("/api/auth/reset-password", { token, newPassword })).data,
 };
 
 export default authApi;

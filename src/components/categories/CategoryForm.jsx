@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getErrorMessage } from "../../utils/apiError";
 
 const CategoryForm = ({
   initialData,
@@ -8,6 +9,7 @@ const CategoryForm = ({
 }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [lifespan, setLifespan] = useState("");
 
   const [error, setError] = useState("");
 
@@ -15,9 +17,11 @@ const CategoryForm = ({
     if (initialData) {
       setName(initialData.name || "");
       setDescription(initialData.description || "");
+      setLifespan(initialData.expectedLifespanMonths ?? "");
     } else {
       setName("");
       setDescription("");
+      setLifespan("");
     }
 
     setError("");
@@ -41,8 +45,8 @@ const CategoryForm = ({
       return;
     }
 
-    if (trimmedDescription.length > 500) {
-      setError("Description must not exceed 500 characters.");
+    if (trimmedDescription.length > 255) {
+      setError("Description must not exceed 255 characters.");
       return;
     }
 
@@ -50,14 +54,13 @@ const CategoryForm = ({
       await onSubmit({
         name: trimmedName,
         description: trimmedDescription || null,
+        expectedLifespanMonths: lifespan === "" ? null : Number(lifespan),
       });
     } catch (error) {
       console.error(error);
 
       const message =
-        error.response?.data?.message ||
-        error.response?.data ||
-        "Failed to save category.";
+        getErrorMessage(error, "Failed to save category.");
 
       setError(
         typeof message === "string"
@@ -102,10 +105,30 @@ const CategoryForm = ({
           rows="4"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          maxLength={500}
+          maxLength={255}
           disabled={loading}
           placeholder="Enter category description"
         />
+      </div>
+
+      <div className="mb-3">
+        <label className="form-label" htmlFor="category-lifespan">
+          Expected lifespan (months)
+        </label>
+        <input
+          id="category-lifespan"
+          type="number"
+          min="1"
+          max="600"
+          className="form-control"
+          value={lifespan}
+          onChange={(e) => setLifespan(e.target.value)}
+          disabled={loading}
+          placeholder="e.g. 48 for laptops"
+        />
+        <div className="form-text">
+          Used for the asset health score and depreciation. Empty = 48 months.
+        </div>
       </div>
 
       <div className="d-flex gap-2">

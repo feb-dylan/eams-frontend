@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import damageApi from "../../services/damageApi";
+import { getErrorMessage } from "../../utils/apiError";
 
 const AdminDamageReports = () => {
   const [reports, setReports] = useState([]);
@@ -23,9 +24,7 @@ const AdminDamageReports = () => {
       console.error(error);
 
       setError(
-        error.response?.data?.message ||
-          error.response?.data ||
-          "Failed to load damage reports."
+        getErrorMessage(error, "Failed to load damage reports.")
       );
     } finally {
       setLoading(false);

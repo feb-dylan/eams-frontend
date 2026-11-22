@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import dashboardApi from "../../services/dashboardApi";
 
 import KpiCard from "../../components/dashboard/KpiCard";
+import CategoryBarChart from "../../components/dashboard/CategoryBarChart";
 
 import AssetStatusChart from "../../components/dashboard/AssetStatusChart";
 
@@ -276,6 +277,28 @@ const AdminDashboard = () => {
 
       </div>
 
+
+      {/* Warranty alert + distribution by category (new dashboard fields) */}
+      <div className="row g-3 mb-4">
+        <div className="col-lg-4">
+          <Link to="/insights" className="card h-100 border-0 shadow-sm text-decoration-none text-body">
+            <div className="card-body">
+              <div className="text-warning mb-2"><i className="bi bi-shield-exclamation fs-3"></i></div>
+              <div className="text-muted small text-uppercase fw-semibold">Warranties ending in 30 days</div>
+              <div className="display-6 fw-bold">{dashboard?.warrantyExpiringSoon ?? 0}</div>
+              <div className="small text-primary mt-2">See insights <i className="bi bi-arrow-right"></i></div>
+            </div>
+          </Link>
+        </div>
+        <div className="col-lg-8">
+          <div className="card h-100 border-0 shadow-sm">
+            <div className="card-header bg-white"><h5 className="mb-0">Assets by category</h5></div>
+            <div className="card-body">
+              <CategoryBarChart data={dashboard?.assetsByCategory || []} />
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* ============================================================
           CHARTS ROW 1

@@ -4,8 +4,11 @@ import { Link } from "react-router-dom";
 import departmentApi from "../../services/departmentApi";
 import DepartmentForm from "../../components/departments/DepartmentForm";
 import { useAuth } from "../../context/AuthContext";
+import { getErrorMessage } from "../../utils/apiError";
+import { useConfirm } from "../../components/common/Feedback";
 
 const DepartmentList = () => {
+  const confirm = useConfirm();
   const { role } = useAuth();
 
   const [departments, setDepartments] = useState([]);
@@ -31,9 +34,7 @@ const DepartmentList = () => {
       console.error("Failed to load departments:", err);
 
       setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to load departments."
+        getErrorMessage(err, "Failed to load departments.")
       );
     } finally {
       setLoading(false);
@@ -79,9 +80,7 @@ const DepartmentList = () => {
       console.error("Failed to save department:", err);
 
       setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to save department."
+        getErrorMessage(err, "Failed to save department.")
       );
     } finally {
       setSaving(false);
@@ -89,7 +88,7 @@ const DepartmentList = () => {
   };
 
   const handleDelete = async (department) => {
-    const confirmed = window.confirm(
+    const confirmed = await confirm(
       `Are you sure you want to delete "${department.name}"?`
     );
 
@@ -107,9 +106,7 @@ const DepartmentList = () => {
       console.error("Failed to delete department:", err);
 
       setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to delete department."
+        getErrorMessage(err, "Failed to delete department.")
       );
     }
   };

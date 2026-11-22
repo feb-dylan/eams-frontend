@@ -6,6 +6,7 @@ import reportApi from "../../services/reportApi";
 import ReportSummaryCard from "../../components/reports/ReportSummaryCard";
 import ExportButtons from "../../components/reports/ExportButtons";
 import DamageStatusChart from "../../components/dashboard/DamageStatusChart";
+import { getErrorMessage } from "../../utils/apiError";
 
 const DamageReport = () => {
   const [report, setReport] = useState(null);
@@ -23,8 +24,7 @@ const DamageReport = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          "Failed to load damage report."
+        getErrorMessage(err, "Failed to load damage report.")
       );
     } finally {
       setLoading(false);

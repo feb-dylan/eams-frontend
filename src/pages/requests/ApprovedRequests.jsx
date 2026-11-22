@@ -1,146 +1,147 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-
 import assetRequestApi from "../../services/assetRequestApi";
-import { useAuth } from "../../context/AuthContext";
+import assetApi from "../../services/assetApi";
+import StatusBadge from "../../components/common/StatusBadge";
+import PageLoader from "../../components/common/PageLoader";
+import { useConfirm, useToast } from "../../components/common/Feedback";
+import { getErrorMessage } from "../../utils/apiError";
+import { formatDate, formatRelative } from "../../utils/format";
 
+/** Admin: approved requests waiting for an asset to be handed out. */
 const ApprovedRequests = () => {
-  const { userId } = useAuth();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [requests, setRequests] = useState([]);
+  const [available, setAvailable] = useState([]);
+  const [choice, setChoice] = useState({});
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [busyId, setBusyId] = useState(null);
 
-  const loadRequests = async () => {
+  const load = useCallback(async () => {
     try {
-      setLoading(true);
       setError("");
-      const data = await assetRequestApi.getApprovedRequests();
-      setRequests(data);
+      const [approved, assets] = await Promise.all([
+        assetRequestApi.getApprovedRequests(),
+        assetApi.getAssetsByStatus("AVAILABLE"),
+      ]);
+      setRequests(approved);
+      setAvailable(assets);
     } catch (err) {
-      console.error(err);
-      setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to load approved requests."
-      );
+      setError(getErrorMessage(err, "Failed to load approved requests."));
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadRequests();
   }, []);
 
-  const handleAssign = async (requestId) => {
-    if (!window.confirm("Assign this asset to the employee?")) return;
+  useEffect(() => {
+    load();
+  }, [load]);
 
+  const assign = async (r) => {
+    const assetId = r.assetId ? null : Number(choice[r.id]);
+    if (!r.assetId && !assetId) {
+      toast.error("Choose which asset to hand out.");
+      return;
+    }
+    const asset = r.assetId ? `${r.assetCode} ${r.assetName}` : available.find((a) => a.id === assetId)?.name;
+    if (!(await confirm({ title: "Assign asset", message: `Assign ${asset} to ${r.employeeName}?`,
+      confirmText: "Assign" }))) return;
+
+    setBusyId(r.id);
     try {
-      setActionLoading(true);
-      setError("");
-      setSuccess("");
-
-      await assetRequestApi.assignAsset(requestId, userId);
-
-      setSuccess("Asset assigned successfully.");
-      await loadRequests();
+      await assetRequestApi.assignAsset(r.id, assetId);
+      toast.success(`Assigned to ${r.employeeName}.`);
+      await load();
     } catch (err) {
-      console.error(err);
-      setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to assign asset."
-      );
+      toast.error(getErrorMessage(err, "Failed to assign asset."));
     } finally {
-      setActionLoading(false);
+      setBusyId(null);
     }
   };
 
-  return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h2>Approved Requests</h2>
-          <p className="text-muted mb-0">
-            Assign the requested asset to the employee
-          </p>
-        </div>
+  if (loading) return <PageLoader text="Loading approved requests..." />;
 
-        <button
-          className="btn btn-outline-secondary"
-          onClick={loadRequests}
-          disabled={loading}
-        >
-          Refresh
-        </button>
+  return (
+    <div className="container-fluid py-4">
+      <div className="mb-4">
+        <h2 className="mb-1">Approved Requests</h2>
+        <p className="text-muted mb-0">Hand out the asset to complete each request</p>
       </div>
 
-      {error && <div className="alert alert-danger">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
+      {error && <div className="alert alert-danger" role="alert">{error}</div>}
 
       <div className="card shadow-sm">
-        <div className="table-responsive">
-          <table className="table table-hover align-middle mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>ID</th>
-                <th>Employee ID</th>
-                <th>Asset ID</th>
-                <th>Reason</th>
-                <th>Approved By</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+        {requests.length === 0 ? (
+          <div className="card-body text-center text-muted py-5">
+            <i className="bi bi-check2-circle fs-1 d-block mb-2"></i>
+            Nothing waiting for assignment.
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table align-middle mb-0">
+              <thead className="table-light">
                 <tr>
-                  <td colSpan="6" className="text-center py-4">
-                    Loading...
-                  </td>
+                  <th>Employee</th>
+                  <th>Asset</th>
+                  <th>Priority</th>
+                  <th>Needed by</th>
+                  <th>Approved</th>
+                  <th className="text-end">Action</th>
                 </tr>
-              ) : requests.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-4">
-                    No approved requests awaiting assignment.
-                  </td>
-                </tr>
-              ) : (
-                requests.map((req) => (
-                  <tr key={req.id}>
-                    <td>{req.id}</td>
-                    <td>{req.employeeId}</td>
-                    <td>{req.assetId ?? "-"}</td>
-                    <td className="text-truncate" style={{ maxWidth: 260 }}>
-                      {req.reason}
-                    </td>
-                    <td>{req.approvedBy ?? "-"}</td>
-                    <td>
-                      <div className="d-flex gap-2">
-                        <Link
-                          to={`/requests/${req.id}`}
-                          className="btn btn-sm btn-outline-secondary"
-                        >
-                          View
-                        </Link>
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => handleAssign(req.id)}
-                          disabled={actionLoading}
-                        >
-                          Assign Asset
+              </thead>
+              <tbody>
+                {requests.map((r) => {
+                  const options = available.filter((a) => a.category?.id === r.categoryId);
+                  return (
+                    <tr key={r.id}>
+                      <td>
+                        <div className="fw-semibold">{r.employeeName}</div>
+                        <Link to={`/requests/${r.id}`} className="small">Request #{r.id}</Link>
+                      </td>
+                      <td style={{ minWidth: 240 }}>
+                        {r.assetId ? (
+                          <><strong>{r.assetCode}</strong> {r.assetName}</>
+                        ) : (
+                          <>
+                            <label className="form-label small mb-1" htmlFor={`pick-${r.id}`}>
+                              Any {r.categoryName}: choose one
+                            </label>
+                            <select id={`pick-${r.id}`} className="form-select form-select-sm"
+                                    value={choice[r.id] || ""}
+                                    onChange={(e) => setChoice((c) => ({ ...c, [r.id]: e.target.value }))}>
+                              <option value="">-- select asset --</option>
+                              {options.map((a) => (
+                                <option key={a.id} value={a.id}>{a.assetCode} - {a.name}</option>
+                              ))}
+                            </select>
+                            {options.length === 0 && (
+                              <div className="small text-danger mt-1">No available {r.categoryName} in stock</div>
+                            )}
+                          </>
+                        )}
+                      </td>
+                      <td><StatusBadge value={r.priority} /></td>
+                      <td>{formatDate(r.neededBy)}</td>
+                      <td className="small text-muted">
+                        {formatRelative(r.approvedAt)}
+                        {r.approvedByEmail && <div>by {r.approvedByEmail}</div>}
+                      </td>
+                      <td className="text-end">
+                        <button className="btn btn-sm btn-primary" disabled={busyId === r.id}
+                                onClick={() => assign(r)}>
+                          <i className="bi bi-box-arrow-right me-1"></i> Assign
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

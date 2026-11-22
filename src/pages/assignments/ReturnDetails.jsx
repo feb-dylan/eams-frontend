@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import assignmentApi from "../../services/assignmentApi";
+import { getErrorMessage } from "../../utils/apiError";
+import { useToast } from "../../components/common/Feedback";
 
 const ReturnDetails = () => {
   const { assignmentId } = useParams();
@@ -12,6 +14,25 @@ const ReturnDetails = () => {
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState("");
+
+  const toast = useToast();
+  const [note, setNote] = useState("");
+  const [receiving, setReceiving] = useState(false);
+
+  // Admin confirms the asset is physically back.
+  const receiveReturn = async (e) => {
+    e.preventDefault();
+    setReceiving(true);
+    try {
+      const updated = await assignmentApi.returnAssignment(assignmentId, note.trim() || null);
+      setAssignment(updated);
+      toast.success("Return received. The asset is back in stock.");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Failed to receive the return."));
+    } finally {
+      setReceiving(false);
+    }
+  };
 
   const loadAssignment = async () => {
     try {
@@ -28,9 +49,7 @@ const ReturnDetails = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          err.response?.data ||
-          "Failed to load return details."
+        getErrorMessage(err, "Failed to load return details.")
       );
     } finally {
       setLoading(false);
@@ -144,6 +163,25 @@ const ReturnDetails = () => {
         </Link>
 
       </div>
+
+      {assignment.status !== "RETURNED" && (
+        <form className="card shadow-sm border-0 border-start border-warning border-4 mb-4" onSubmit={receiveReturn}>
+          <div className="card-body">
+            <h5 className="mb-2">
+              {assignment.status === "RETURN_REQUESTED"
+                ? `${assignment.employeeName || "The employee"} wants to return this asset`
+                : "Receive this asset back"}
+            </h5>
+            <label className="form-label" htmlFor="receive-note">Condition / note (optional)</label>
+            <input id="receive-note" className="form-control mb-2" maxLength={500}
+                   value={note} onChange={(e) => setNote(e.target.value)}
+                   placeholder="e.g. Returned in good condition" />
+            <button type="submit" className="btn btn-warning" disabled={receiving}>
+              <i className="bi bi-box-arrow-in-down me-1"></i> Receive return
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* STATUS */}
 

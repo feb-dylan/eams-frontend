@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 
 import employeeApi from "../../services/employeeApi";
+import { getErrorMessage } from "../../utils/apiError";
 
 const EmployeeDetails = () => {
   const { id } = useParams();
@@ -36,8 +37,7 @@ const EmployeeDetails = () => {
       console.error(err);
 
       setError(
-        err.response?.data?.message ||
-          "Failed to load employee."
+        getErrorMessage(err, "Failed to load employee.")
       );
     } finally {
       setLoading(false);
