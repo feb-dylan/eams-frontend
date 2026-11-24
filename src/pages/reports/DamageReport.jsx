@@ -37,7 +37,7 @@ const DamageReport = () => {
 
   const rows = report
     ? [
-        { status: "Reported", count: report.pending },
+        { status: "Reported / Under review", count: report.pending },
         { status: "Repairing", count: report.inProgress },
         { status: "Resolved", count: report.completed },
       ]
@@ -104,7 +104,7 @@ const DamageReport = () => {
 
             <div className="col-sm-6 col-lg-3">
               <ReportSummaryCard
-                label="Reported"
+                label="Reported / Under review"
                 value={report.pending}
                 icon="bi-exclamation-circle"
                 color="danger"

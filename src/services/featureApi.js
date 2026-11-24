@@ -17,6 +17,11 @@ export const insightsApi = {
     (await api.get("/api/insights/replacement-candidates", { params: { limit } })).data,
   assetHealth: async () => (await api.get("/api/insights/asset-health")).data,
   idleAssets: async (days = 90) => (await api.get("/api/insights/idle-assets", { params: { days } })).data,
+  waitingRequests: async (assetId) =>
+    (await api.get(`/api/insights/idle-assets/${assetId}/waiting-requests`)).data,
+  /** Admin only: ask the managers to approve a pending request this idle asset could fill. */
+  remindManagers: async (assetId, note) =>
+    (await api.post(`/api/insights/idle-assets/${assetId}/remind`, { note })).data,
 };
 
 export const assistantApi = {

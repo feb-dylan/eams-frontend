@@ -123,7 +123,7 @@ const AppRoutes = () => (
           <Route path="/requests/approved" element={guard(ADMIN, <ApprovedRequests />)} />
           <Route path="/requests/:id" element={guard(["ADMIN", "MANAGER", "EMPLOYEE"], <RequestDetails />)} />
           <Route path="/assignments" element={guard(ADMIN_MANAGER, <AssignmentHistory />)} />
-          <Route path="/admin/assignments/:assignmentId" element={guard(ADMIN, <ReturnDetails />)} />
+          <Route path="/admin/assignments/:assignmentId" element={guard(ADMIN_MANAGER, <ReturnDetails />)} />
 
           {/* damage and maintenance */}
           <Route path="/damage" element={guard(EMPLOYEE, <MyDamageReports />)} />

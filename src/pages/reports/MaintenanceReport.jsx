@@ -37,14 +37,12 @@ const MaintenanceReport = () => {
 
   const rows = report
     ? [
-        {
-          metric: "In Progress",
-          value: report.inProgress,
-        },
-        {
-          metric: "Completed",
-          value: report.completed,
-        },
+        // the backend sends SCHEDULED jobs in the "pending" field
+        { metric: "Scheduled", value: report.pending },
+        { metric: "In Progress", value: report.inProgress },
+        { metric: "Completed", value: report.completed },
+        { metric: "Cancelled", value: report.cancelled },
+        { metric: "Total Jobs", value: report.total },
         {
           metric: "Total Repair Cost",
           value: Number(report.totalRepairCost || 0).toFixed(2),
@@ -59,7 +57,7 @@ const MaintenanceReport = () => {
 
   const chartData = report
     ? {
-        scheduledMaintenance: 0,
+        scheduledMaintenance: report.pending,
         inProgressMaintenance: report.inProgress,
         completedMaintenance: report.completed,
         cancelledMaintenance: report.cancelled,
@@ -102,7 +100,7 @@ const MaintenanceReport = () => {
       ) : (
         <>
           <div className="row g-3 mb-4">
-            <div className="col-sm-6 col-lg-3">
+            <div className="col-sm-6 col-lg-4">
               <ReportSummaryCard
                 label="Total Maintenance"
                 value={report.total}
@@ -111,7 +109,16 @@ const MaintenanceReport = () => {
               />
             </div>
 
-            <div className="col-sm-6 col-lg-3">
+            <div className="col-sm-6 col-lg-4">
+              <ReportSummaryCard
+                label="Scheduled"
+                value={report.pending}
+                icon="bi-calendar-event"
+                color="warning"
+              />
+            </div>
+
+            <div className="col-sm-6 col-lg-4">
               <ReportSummaryCard
                 label="In Progress"
                 value={report.inProgress}
@@ -120,7 +127,7 @@ const MaintenanceReport = () => {
               />
             </div>
 
-            <div className="col-sm-6 col-lg-3">
+            <div className="col-sm-6 col-lg-4">
               <ReportSummaryCard
                 label="Completed"
                 value={report.completed}
@@ -129,7 +136,16 @@ const MaintenanceReport = () => {
               />
             </div>
 
-            <div className="col-sm-6 col-lg-3">
+            <div className="col-sm-6 col-lg-4">
+              <ReportSummaryCard
+                label="Cancelled"
+                value={report.cancelled}
+                icon="bi-x-circle"
+                color="secondary"
+              />
+            </div>
+
+            <div className="col-sm-6 col-lg-4">
               <ReportSummaryCard
                 label="Total Repair Cost"
                 value={Number(report.totalRepairCost || 0).toFixed(2)}
@@ -175,7 +191,7 @@ const MaintenanceReport = () => {
 
                     <tbody>
                       {rows.map((row) => (
-                        <tr key={row.metric}>
+                        <tr key={row.metric} className={row.metric === "Total Jobs" ? "table-primary fw-bold" : undefined}>
                           <td>{row.metric}</td>
 
                           <td className="text-end fw-semibold">

@@ -5,8 +5,13 @@ import { Link } from "react-router-dom";
 import assignmentApi from "../../services/assignmentApi";
 
 import { getErrorMessage } from "../../utils/apiError";
+import { formatDate } from "../../utils/format";
+import { useAuth } from "../../context/AuthContext";
+import StatusBadge from "../../components/common/StatusBadge";
 
 const AssignmentHistory = () => {
+  const { role } = useAuth();
+  const isAdmin = role === "ADMIN"; // only admins receive returns; managers can view
 
   const [assignments, setAssignments] = useState([]);
 
@@ -88,22 +93,6 @@ const AssignmentHistory = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "ACTIVE":
-        return "bg-primary";
-
-      case "RETURN_REQUESTED":
-        return "bg-warning text-dark";
-
-      case "RETURNED":
-        return "bg-success";
-
-      default:
-        return "bg-secondary";
-    }
-  };
-
   return (
     <div className="container mt-4">
 
@@ -156,8 +145,7 @@ const AssignmentHistory = () => {
           <div className="card-header bg-success text-white">
 
             <h5 className="mb-0">
-              Receive Return #
-              {returningAssignment.id}
+              Receive return: {returningAssignment.assetCode} from {returningAssignment.employeeName}
             </h5>
 
           </div>
@@ -228,114 +216,45 @@ const AssignmentHistory = () => {
       {/* ASSIGNMENT TABLE */}
 
       <div className="card shadow-sm">
-
         <div className="table-responsive">
-
           <table className="table table-hover align-middle mb-0">
-
             <thead className="table-light">
-
               <tr>
-
-                <th>ID</th>
-                <th>Asset ID</th>
-                <th>Employee ID</th>
-                <th>Assigned Date</th>
-                <th>Returned Date</th>
+                <th>Asset</th>
+                <th>Employee</th>
+                <th>Assigned</th>
+                <th>Returned</th>
                 <th>Status</th>
-                <th>Assigned By</th>
-                <th>Actions</th>
-
+                <th>Assigned by</th>
+                <th className="text-end">Actions</th>
               </tr>
-
             </thead>
 
             <tbody>
-
               {loading ? (
-
-                <tr>
-
-                  <td
-                    colSpan="8"
-                    className="text-center py-4"
-                  >
-                    Loading...
-                  </td>
-
-                </tr>
-
+                <tr><td colSpan="7" className="text-center py-4">Loading...</td></tr>
               ) : assignments.length === 0 ? (
-
-                <tr>
-
-                  <td
-                    colSpan="8"
-                    className="text-center py-4"
-                  >
-                    No assignments yet.
-                  </td>
-
-                </tr>
-
+                <tr><td colSpan="7" className="text-center py-4">No assignments yet.</td></tr>
               ) : (
-
                 assignments.map((a) => (
-
                   <tr key={a.id}>
-
                     <td>
-                      {a.id}
+                      <Link to={`/assets/${a.assetId}`}><strong>{a.assetCode}</strong></Link>
+                      <div className="small text-muted">{a.assetName}</div>
                     </td>
-
                     <td>
-                      {a.assetId}
+                      {a.employeeName}
+                      {a.employeeCode && <div className="small text-muted">{a.employeeCode}</div>}
                     </td>
-
-                    <td>
-                      {a.employeeId}
-                    </td>
-
-                    <td>
-                      {a.assignedDate ?? "-"}
-                    </td>
-
-                    <td>
-                      {a.returnedDate ?? "-"}
-                    </td>
-
-                    <td>
-
-                      <span
-                        className={`badge ${getStatusBadge(
-                          a.status
-                        )}`}
-                      >
-                        {a.status}
-                      </span>
-
-                    </td>
-
-                    <td>
-                      {a.assignedBy ?? "-"}
-                    </td>
-
-                    <td>
-
-                      {a.status ===
-                        "RETURN_REQUESTED" ? (
-
-                        <div className="d-flex gap-2">
-
-                          <Link
-                            to={`/admin/assignments/${a.id}`}
-                            className="btn btn-sm btn-outline-primary"
-                          >
-                            View Details
-                          </Link>
-
+                    <td>{formatDate(a.assignedDate)}</td>
+                    <td>{a.returnedDate ? formatDate(a.returnedDate) : "-"}</td>
+                    <td><StatusBadge value={a.status} /></td>
+                    <td className="small">{a.assignedByEmail || "-"}</td>
+                    <td className="text-end">
+                      <div className="d-flex gap-2 justify-content-end">
+                        {isAdmin && a.status === "RETURN_REQUESTED" && (
                           <button
-                            className="btn btn-sm btn-outline-success"
+                            className="btn btn-sm btn-success"
                             onClick={() => {
                               setReturningAssignment(a);
                               setReturnNote("");
@@ -344,42 +263,20 @@ const AssignmentHistory = () => {
                             }}
                             disabled={actionLoading}
                           >
-                            Receive Return
+                            Receive return
                           </button>
-
-                        </div>
-
-                      ) : a.status === "RETURNED" ? (
-
-                        <Link
-                          to={`/admin/assignments/${a.id}`}
-                          className="btn btn-sm btn-outline-primary"
-                        >
-                          View Details
+                        )}
+                        <Link to={`/admin/assignments/${a.id}`} className="btn btn-sm btn-outline-primary">
+                          View details
                         </Link>
-
-                      ) : (
-
-                        <span className="text-muted">
-                          Employee has not requested return
-                        </span>
-
-                      )}
-
+                      </div>
                     </td>
-
                   </tr>
-
                 ))
-
               )}
-
             </tbody>
-
           </table>
-
         </div>
-
       </div>
 
     </div>

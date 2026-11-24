@@ -37,6 +37,8 @@ const AssignmentReport = () => {
   const rows = report
     ? [
         { status: "Active", count: report.assigned },
+        // the backend sends RETURN_REQUESTED assignments in the "pending" field
+        { status: "Return requested", count: report.pending },
         { status: "Returned", count: report.completed },
       ]
     : [];
@@ -82,7 +84,7 @@ const AssignmentReport = () => {
       ) : (
         <>
           <div className="row g-3 mb-4">
-            <div className="col-sm-6 col-lg-4">
+            <div className="col-sm-6 col-lg-3">
               <ReportSummaryCard
                 label="Total Assignments"
                 value={report.total}
@@ -91,7 +93,7 @@ const AssignmentReport = () => {
               />
             </div>
 
-            <div className="col-sm-6 col-lg-4">
+            <div className="col-sm-6 col-lg-3">
               <ReportSummaryCard
                 label="Active"
                 value={report.assigned}
@@ -100,7 +102,16 @@ const AssignmentReport = () => {
               />
             </div>
 
-            <div className="col-sm-6 col-lg-4">
+            <div className="col-sm-6 col-lg-3">
+              <ReportSummaryCard
+                label="Return requested"
+                value={report.pending}
+                icon="bi-hourglass-split"
+                color="warning"
+              />
+            </div>
+
+            <div className="col-sm-6 col-lg-3">
               <ReportSummaryCard
                 label="Returned"
                 value={report.completed}

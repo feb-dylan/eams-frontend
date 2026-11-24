@@ -4,6 +4,8 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { insightsApi } from "../../services/featureApi";
 import assetApi from "../../services/assetApi";
 import StatusBadge from "../../components/common/StatusBadge";
+import WaitingRequestsPanel from "../../components/insights/WaitingRequestsPanel";
+import { useAuth } from "../../context/AuthContext";
 import PageLoader from "../../components/common/PageLoader";
 import { getErrorMessage } from "../../utils/apiError";
 import { daysUntil, formatDate, formatMoney } from "../../utils/format";
@@ -48,6 +50,8 @@ const Insights = () => {
   const [warranty, setWarranty] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [openIdleId, setOpenIdleId] = useState(null);
+  const { role } = useAuth();
 
   useEffect(() => {
     Promise.all([
@@ -146,14 +150,26 @@ const Insights = () => {
             <ul className="list-group list-group-flush">
               {idle.length === 0 && <li className="list-group-item text-muted">No idle assets.</li>}
               {idle.map((a) => (
-                <li key={a.assetId} className="list-group-item d-flex justify-content-between">
-                  <Link to={`/assets/${a.assetId}`}>{a.assetCode} - {a.assetName}</Link>
-                  <span className="small text-muted">
-                    {a.idleDays} days
-                    {a.pendingRequestsInCategory > 0 && (
-                      <span className="badge bg-success ms-2">{a.pendingRequestsInCategory} waiting request(s)</span>
-                    )}
-                  </span>
+                <li key={a.assetId} className="list-group-item">
+                  <div className="d-flex justify-content-between">
+                    <Link to={`/assets/${a.assetId}`}>{a.assetCode} - {a.assetName}</Link>
+                    <span className="small text-muted">
+                      {a.idleDays} days
+                      {a.pendingRequestsInCategory > 0 && (
+                        <button
+                          type="button"
+                          className="badge bg-success border-0 ms-2"
+                          aria-expanded={openIdleId === a.assetId}
+                          title="Show the requests this asset could fill"
+                          onClick={() => setOpenIdleId(openIdleId === a.assetId ? null : a.assetId)}
+                        >
+                          {a.pendingRequestsInCategory} waiting request(s)
+                          <i className={`bi ms-1 ${openIdleId === a.assetId ? "bi-chevron-up" : "bi-chevron-down"}`}></i>
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                  {openIdleId === a.assetId && <WaitingRequestsPanel assetId={a.assetId} role={role} />}
                 </li>
               ))}
             </ul>

@@ -38,6 +38,8 @@ const RequestReport = () => {
     ? [
         { status: "Pending", count: report.pending },
         { status: "Approved", count: report.approved },
+        // the backend sends ASSIGNED requests in the "completed" field
+        { status: "Assigned", count: report.completed },
         { status: "Rejected", count: report.rejected },
       ]
     : [];
@@ -83,7 +85,7 @@ const RequestReport = () => {
       ) : (
         <>
           <div className="row g-3 mb-4">
-            <div className="col-sm-6 col-lg-3">
+            <div className="col-sm-6 col-lg">
               <ReportSummaryCard
                 label="Total Requests"
                 value={report.total}
@@ -92,7 +94,7 @@ const RequestReport = () => {
               />
             </div>
 
-            <div className="col-sm-6 col-lg-3">
+            <div className="col-sm-6 col-lg">
               <ReportSummaryCard
                 label="Pending"
                 value={report.pending}
@@ -101,7 +103,7 @@ const RequestReport = () => {
               />
             </div>
 
-            <div className="col-sm-6 col-lg-3">
+            <div className="col-sm-6 col-lg">
               <ReportSummaryCard
                 label="Approved"
                 value={report.approved}
@@ -110,7 +112,16 @@ const RequestReport = () => {
               />
             </div>
 
-            <div className="col-sm-6 col-lg-3">
+            <div className="col-sm-6 col-lg">
+              <ReportSummaryCard
+                label="Assigned"
+                value={report.completed}
+                icon="bi-box-arrow-in-right"
+                color="info"
+              />
+            </div>
+
+            <div className="col-sm-6 col-lg">
               <ReportSummaryCard
                 label="Rejected"
                 value={report.rejected}

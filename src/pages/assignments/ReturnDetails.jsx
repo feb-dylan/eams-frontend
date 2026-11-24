@@ -1,31 +1,60 @@
-import { useEffect, useState } from "react";
-
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import assignmentApi from "../../services/assignmentApi";
 import { getErrorMessage } from "../../utils/apiError";
+import { formatDate } from "../../utils/format";
 import { useToast } from "../../components/common/Feedback";
+import { useAuth } from "../../context/AuthContext";
+import StatusBadge from "../../components/common/StatusBadge";
+import DetailRow from "../../components/common/DetailRow";
+import PageLoader from "../../components/common/PageLoader";
+
+/**
+ * One assignment = one "loan" of an asset to one employee:
+ *   ACTIVE  ->  RETURN_REQUESTED (employee asks to give it back)  ->  RETURNED (admin received it).
+ * RETURNED is the end: the asset is back in stock, and its next loan is a new assignment.
+ */
+const STEPS = [
+  { status: "ACTIVE", label: "Assigned" },
+  { status: "RETURN_REQUESTED", label: "Return requested" },
+  { status: "RETURNED", label: "Returned (finished)" },
+];
 
 const ReturnDetails = () => {
   const { assignmentId } = useParams();
+  const { role } = useAuth();
+  const toast = useToast();
+  const isAdmin = role === "ADMIN";
 
   const [assignment, setAssignment] = useState(null);
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
-
-  const toast = useToast();
   const [note, setNote] = useState("");
   const [receiving, setReceiving] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      setAssignment(await assignmentApi.getAssignmentById(assignmentId));
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to load the assignment."));
+    } finally {
+      setLoading(false);
+    }
+  }, [assignmentId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Admin confirms the asset is physically back.
   const receiveReturn = async (e) => {
     e.preventDefault();
     setReceiving(true);
     try {
-      const updated = await assignmentApi.returnAssignment(assignmentId, note.trim() || null);
-      setAssignment(updated);
+      setAssignment(await assignmentApi.returnAssignment(assignmentId, note.trim() || null));
       toast.success("Return received. The asset is back in stock.");
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to receive the return."));
@@ -34,349 +63,107 @@ const ReturnDetails = () => {
     }
   };
 
-  const loadAssignment = async () => {
-    try {
-      setLoading(true);
-      setError("");
+  const backLink = (
+    <Link to="/assignments" className="btn btn-outline-secondary">
+      <i className="bi bi-arrow-left me-1"></i> Back to assignments
+    </Link>
+  );
 
-      const data =
-        await assignmentApi.getAssignmentById(
-          assignmentId
-        );
-
-      setAssignment(data);
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        getErrorMessage(err, "Failed to load return details.")
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (assignmentId) {
-      loadAssignment();
-    }
-  }, [assignmentId]);
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "ACTIVE":
-        return "bg-primary";
-
-      case "RETURN_REQUESTED":
-        return "bg-warning text-dark";
-
-      case "RETURNED":
-        return "bg-success";
-
-      default:
-        return "bg-secondary";
-    }
-  };
-
-  if (loading) {
+  if (loading) return <PageLoader text="Loading assignment..." />;
+  if (error || !assignment) {
     return (
       <div className="container mt-4">
-        <div className="text-center py-5">
-          <div
-            className="spinner-border"
-            role="status"
-          >
-            <span className="visually-hidden">
-              Loading...
-            </span>
-          </div>
-
-          <p className="text-muted mt-3">
-            Loading return details...
-          </p>
-        </div>
+        <div className="alert alert-danger">{error || "Assignment not found."}</div>
+        {backLink}
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="container mt-4">
-        <div className="alert alert-danger">
-          {error}
-        </div>
-
-        <Link
-          to="/assignments"
-          className="btn btn-secondary"
-        >
-          <i className="bi bi-arrow-left me-1"></i>
-          Back to Assignment History
-        </Link>
-      </div>
-    );
-  }
-
-  if (!assignment) {
-    return (
-      <div className="container mt-4">
-        <div className="alert alert-warning">
-          Assignment not found.
-        </div>
-
-        <Link
-          to="/assignments"
-          className="btn btn-secondary"
-        >
-          <i className="bi bi-arrow-left me-1"></i>
-          Back to Assignment History
-        </Link>
-      </div>
-    );
-  }
+  const a = assignment;
+  const currentStep = STEPS.findIndex((s) => s.status === a.status);
+  const finished = a.status === "RETURNED";
 
   return (
-    <div className="container mt-4">
-
-      {/* HEADER */}
-
-      <div className="d-flex justify-content-between align-items-center mb-4">
-
+    <div className="container mt-4" style={{ maxWidth: 860 }}>
+      <div className="d-flex justify-content-between align-items-center mb-4 gap-2 flex-wrap">
         <div>
-          <h2 className="fw-bold mb-1">
-            Return Details
-          </h2>
-
+          <h2 className="fw-bold mb-1">Assignment details</h2>
           <p className="text-muted mb-0">
-            Assignment #{assignment.id}
+            Who had <strong>{a.assetCode}</strong>, from when to when.
           </p>
         </div>
-
-        {/* ONE BACK BUTTON */}
-
-        <Link
-          to="/assignments"
-          className="btn btn-outline-secondary"
-        >
-          <i className="bi bi-arrow-left me-1"></i>
-          Back to Assignment History
-        </Link>
-
+        {backLink}
       </div>
 
-      {assignment.status !== "RETURNED" && (
+      {/* PROGRESS: Assigned -> Return requested -> Returned */}
+      <div className="card shadow-sm border-0 mb-4">
+        <div className="card-body d-flex flex-wrap gap-2 align-items-center">
+          {STEPS.map((s, i) => (
+            <div key={s.status} className="d-flex align-items-center gap-2">
+              <span className={`badge rounded-pill ${i <= currentStep ? "bg-primary" : "bg-light text-muted border"}`}>
+                {i < currentStep || finished ? <i className="bi bi-check-lg me-1"></i> : null}
+                {s.label}
+              </span>
+              {i < STEPS.length - 1 && <i className="bi bi-arrow-right text-muted"></i>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {finished ? (
+        <div className="alert alert-secondary">
+          <i className="bi bi-flag me-2"></i>
+          <strong>This assignment is finished.</strong> The asset was returned on {formatDate(a.returnedDate)} and
+          is back in stock. If it is given to someone again, that will be a <em>new</em> assignment.
+          Nothing more to do here. This page is the record.
+        </div>
+      ) : isAdmin ? (
         <form className="card shadow-sm border-0 border-start border-warning border-4 mb-4" onSubmit={receiveReturn}>
           <div className="card-body">
-            <h5 className="mb-2">
-              {assignment.status === "RETURN_REQUESTED"
-                ? `${assignment.employeeName || "The employee"} wants to return this asset`
-                : "Receive this asset back"}
+            <h5 className="mb-1">
+              {a.status === "RETURN_REQUESTED"
+                ? `${a.employeeName || "The employee"} wants to return this asset`
+                : `${a.employeeName || "The employee"} is still using this asset`}
             </h5>
+            <p className="small text-muted mb-2">
+              {a.status === "RETURN_REQUESTED"
+                ? "Click Receive return after you have the asset in your hands."
+                : "You can still take it back early (e.g. the employee is leaving the company)."}
+            </p>
             <label className="form-label" htmlFor="receive-note">Condition / note (optional)</label>
             <input id="receive-note" className="form-control mb-2" maxLength={500}
                    value={note} onChange={(e) => setNote(e.target.value)}
-                   placeholder="e.g. Returned in good condition" />
+                   placeholder="e.g. Returned in good condition, charger included" />
             <button type="submit" className="btn btn-warning" disabled={receiving}>
-              <i className="bi bi-box-arrow-in-down me-1"></i> Receive return
+              <i className="bi bi-box-arrow-in-down me-1"></i> {receiving ? "Receiving..." : "Receive return"}
             </button>
           </div>
         </form>
+      ) : (
+        <div className="alert alert-info">
+          {a.status === "RETURN_REQUESTED"
+            ? "The employee asked to return this asset. An admin will receive it."
+            : "This asset is currently in use by the employee."}
+        </div>
       )}
 
-      {/* STATUS */}
-
       <div className="card shadow-sm border-0 mb-4">
-
         <div className="card-body">
-
-          <div className="d-flex justify-content-between align-items-center">
-
-            <div>
-              <h5 className="mb-1">
-                Assignment Status
-              </h5>
-
-              <p className="text-muted mb-0">
-                Current status of this asset assignment
-              </p>
-            </div>
-
-            <span
-              className={`badge fs-6 ${getStatusBadge(
-                assignment.status
-              )}`}
-            >
-              {assignment.status}
-            </span>
-
-          </div>
-
+          <DetailRow label="Status"><StatusBadge value={a.status} /></DetailRow>
+          <DetailRow label="Asset">
+            <Link to={`/assets/${a.assetId}`}><strong>{a.assetCode}</strong></Link> - {a.assetName}
+          </DetailRow>
+          <DetailRow label="Employee">
+            {a.employeeName}{a.employeeCode && <span className="text-muted"> ({a.employeeCode})</span>}
+          </DetailRow>
+          <DetailRow label="Assigned by">{a.assignedByEmail}</DetailRow>
+          <DetailRow label="Assigned on">{formatDate(a.assignedDate)}</DetailRow>
+          <DetailRow label="Returned on">{finished ? formatDate(a.returnedDate) : "Not returned yet"}</DetailRow>
+          <DetailRow label="Return note">
+            {a.returnNote || <span className="text-muted">No note</span>}
+          </DetailRow>
         </div>
-
       </div>
-
-      {/* ASSIGNMENT INFORMATION */}
-
-      <div className="card shadow-sm border-0 mb-4">
-
-        <div className="card-header bg-white">
-
-          <h5 className="mb-0">
-            <i className="bi bi-clipboard-check me-2 text-primary"></i>
-            Assignment Information
-          </h5>
-
-        </div>
-
-        <div className="card-body">
-
-          <div className="row g-4">
-
-            <div className="col-md-6">
-
-              <label className="text-muted small">
-                Assignment ID
-              </label>
-
-              <div className="fw-semibold">
-                #{assignment.id}
-              </div>
-
-            </div>
-
-            <div className="col-md-6">
-
-              <label className="text-muted small">
-                Asset ID
-              </label>
-
-              <div className="fw-semibold">
-                #{assignment.assetId}
-              </div>
-
-            </div>
-
-            <div className="col-md-6">
-
-              <label className="text-muted small">
-                Employee ID
-              </label>
-
-              <div className="fw-semibold">
-                #{assignment.employeeId}
-              </div>
-
-            </div>
-
-            <div className="col-md-6">
-
-              <label className="text-muted small">
-                Assigned By
-              </label>
-
-              <div className="fw-semibold">
-                {assignment.assignedBy
-                  ? `Admin #${assignment.assignedBy}`
-                  : "-"}
-              </div>
-
-            </div>
-
-            <div className="col-md-6">
-
-              <label className="text-muted small">
-                Assigned Date
-              </label>
-
-              <div className="fw-semibold">
-                {assignment.assignedDate || "-"}
-              </div>
-
-            </div>
-
-            <div className="col-md-6">
-
-              <label className="text-muted small">
-                Returned Date
-              </label>
-
-              <div className="fw-semibold">
-                {assignment.returnedDate || "-"}
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* RETURN INFORMATION */}
-
-      <div className="card shadow-sm border-0 mb-4">
-
-        <div className="card-header bg-white">
-
-          <h5 className="mb-0">
-            <i className="bi bi-arrow-return-left me-2 text-success"></i>
-            Return Information
-          </h5>
-
-        </div>
-
-        <div className="card-body">
-
-          <div className="mb-4">
-
-            <label className="text-muted small">
-              Return Status
-            </label>
-
-            <div className="mt-1">
-
-              <span
-                className={`badge ${getStatusBadge(
-                  assignment.status
-                )}`}
-              >
-                {assignment.status}
-              </span>
-
-            </div>
-
-          </div>
-
-          <div>
-
-            <label className="text-muted small">
-              Return Note
-            </label>
-
-            {assignment.returnNote ? (
-
-              <div className="alert alert-light border mt-2 mb-0">
-
-                <i className="bi bi-chat-left-text me-2"></i>
-
-                {assignment.returnNote}
-
-              </div>
-
-            ) : (
-
-              <p className="text-muted mt-2 mb-0">
-                No return note was provided.
-              </p>
-
-            )}
-
-          </div>
-
-        </div>
-
-      </div>
-
     </div>
   );
 };
